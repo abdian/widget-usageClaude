@@ -1,0 +1,436 @@
+/* The floating bar. Every value here is sized to be read at a glance, not studied. */
+
+body {
+  background: transparent;
+  overflow: hidden;
+
+  /* Windows will not make a window shorter than 64px. Centring a self-sized panel
+     inside it means switching a row off really does shrink the visible box, with
+     the leftover height simply staying transparent. */
+  height: 100vh;
+  display: grid;
+  align-content: center;
+}
+
+/* ------------------------------------------------------------------- panel */
+
+.panel {
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
+  align-items: center;
+  gap: 10px;
+
+  padding: 9px 11px;
+
+  background: color-mix(in srgb, var(--ink) calc(var(--panel-opacity, 0.96) * 100%), transparent);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+
+  /* A single inset highlight along the top edge does the work a drop shadow
+     would, without needing transparent margin around the window. */
+  box-shadow: inset 0 1px 0 var(--highlight);
+
+  -webkit-app-region: drag;
+  animation: settle 220ms var(--ease) both;
+}
+
+@keyframes settle {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+/* ------------------------------------------------------------------ status */
+
+.status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+}
+
+.status .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--calm);
+  transition: background 200ms var(--ease);
+}
+
+.panel.is-loading .dot {
+  animation: breathe 1.4s ease-in-out infinite;
+}
+
+.panel.is-offline .dot {
+  background: var(--warn);
+}
+
+.panel.is-blocked .dot {
+  background: var(--alarm);
+}
+
+@keyframes breathe {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* ------------------------------------------------------------------- rows */
+
+.body {
+  min-width: 0;
+}
+
+.meters {
+  display: grid;
+  gap: 4px;
+}
+
+.meters[hidden] {
+  display: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 54px 1fr 30px 52px;
+  align-items: center;
+  gap: 8px;
+  height: 18px;
+
+  /* Set by JS from the severity ramp; every colour in the row derives from it. */
+  --c: var(--calm);
+}
+
+.row[hidden] {
+  display: none;
+}
+
+.row .label {
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row .pct {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text);
+  transition: color 240ms var(--ease);
+}
+
+.row .time {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text-dim);
+}
+
+.row.sev-warn .pct,
+.row.sev-alarm .pct {
+  color: var(--c);
+}
+
+/* ------------------------------------------------------------------ meter */
+
+/*
+ * The signature: a segmented track with a redline.
+ *
+ * Twenty ticks (one per 5%) read far better at 6px tall than a smooth bar, and
+ * the 85–100% zone is tinted on the *empty* track so remaining headroom is
+ * visible before you are in trouble — the way a tachometer shows its redline.
+ */
+.meter {
+  position: relative;
+  height: 6px;
+  border-radius: 1px;
+  background:
+    repeating-linear-gradient(90deg, var(--track) 0 3.6%, transparent 3.6% 5%),
+    linear-gradient(90deg, transparent 0 85%, var(--redline) 85% 100%);
+}
+
+.meter .fill {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, var(--c) 0 3.6%, transparent 3.6% 5%);
+
+  /* Clipping a full-width layer (rather than resizing it) keeps the lit ticks
+     locked to the same grid as the track behind them. */
+  clip-path: inset(0 var(--empty, 100%) 0 0);
+  transition: clip-path 620ms var(--ease), background 240ms var(--ease);
+}
+
+/* -------------------------------------------------------------------- strip */
+
+.strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 15px;
+  margin-top: 7px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+}
+
+.strip[hidden] {
+  display: none;
+}
+
+.strip-state {
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 200ms var(--ease);
+}
+
+.panel.is-offline .strip-state {
+  color: var(--warn);
+}
+
+.strip-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.strip-plan {
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--text-faint);
+}
+
+.strip-retry {
+  padding: 1px 7px;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--warn);
+  background: none;
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
+  border-radius: 4px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: background 140ms var(--ease);
+}
+
+.strip-retry[hidden] {
+  display: none;
+}
+
+.strip-retry:hover {
+  background: color-mix(in srgb, var(--warn) 18%, transparent);
+}
+
+/* --------------------------------------------------------------- notice */
+
+.notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 40px;
+}
+
+.notice[hidden] {
+  display: none;
+}
+
+.notice-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.notice-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.notice-detail {
+  font-size: 9.5px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.retry {
+  flex: none;
+  padding: 5px 12px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  background: var(--ink-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease);
+}
+
+.retry:hover {
+  background: color-mix(in srgb, var(--calm) 18%, var(--ink-raised));
+  border-color: color-mix(in srgb, var(--calm) 45%, transparent);
+}
+
+/* ---------------------------------------------------------------- actions */
+
+/*
+ * The controls keep their space so nothing shifts, but stay nearly invisible
+ * until you reach for them. An always-on-top widget should be silent by default.
+ */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0.22;
+  transition: opacity 160ms var(--ease);
+  -webkit-app-region: no-drag;
+}
+
+/* When something is wrong, the way to fix it should not be hidden behind a hover. */
+.panel:hover .actions,
+.panel.is-offline .actions {
+  opacity: 1;
+}
+
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  color: var(--text-dim);
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 140ms var(--ease), background 140ms var(--ease);
+}
+
+.icon-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.icon-btn svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.panel.is-loading #refreshBtn svg {
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------------------------------------------------------------- compact */
+
+/*
+ * Compact is not "the same bar, slightly narrower". It drops the labels to two
+ * characters, the strip, and the controls — everything moves to the right-click
+ * menu — so the bar can shrink to something you park beside the tray icons.
+ */
+.panel.compact {
+  gap: 0;
+  padding: 6px 9px;
+
+  /*
+   * No status dot here. The strip already says the state in words, and when the
+   * strip is switched off a failure forces it back — so the dot was spending a
+   * whole column to repeat something already on screen.
+   */
+  grid-template-columns: 1fr;
+  border-radius: 8px;
+}
+
+.panel.compact .actions,
+.panel.compact .status {
+  display: none;
+}
+
+.panel.compact .meters {
+  gap: 2px;
+}
+
+.panel.compact .row {
+  height: 13px;
+  grid-template-columns: 30px 1fr 27px 42px;
+  gap: 5px;
+}
+
+.panel.compact .row .label {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+/* The height floor leaves room for the strip even here, so it stays — trimmed
+   to just the one fact that does not fit anywhere else. */
+.panel.compact .strip {
+  height: 11px;
+  margin-top: 4px;
+  padding-top: 4px;
+  font-size: 8.5px;
+}
+
+/* Without the dot column, the strip carries the state colour on its own. */
+.panel.compact.is-blocked .strip-state {
+  color: var(--alarm);
+}
+
+.panel.compact .strip-plan {
+  display: none;
+}
+
+.panel.compact .row .pct {
+  font-size: 11.5px;
+}
+
+.panel.compact .row .time {
+  font-size: 10px;
+}
+
+.panel.compact .meter {
+  height: 5px;
+}
+
+.panel.compact .notice {
+  min-height: 26px;
+}
+
+.panel.compact .notice-title {
+  font-size: 10px;
+}
+
+.panel.compact .notice-detail {
+  display: none;
+}
+
+.panel.compact .retry {
+  padding: 3px 8px;
+  font-size: 9px;
+}

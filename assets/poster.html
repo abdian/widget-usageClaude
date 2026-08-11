@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../src/renderer/tokens.css" />
+    <style>
+      /*
+       * The README poster. Built from the app's own tokens so the banner and the
+       * product cannot drift apart, and rendered through Electron so the type is
+       * real type rather than plotted pixels.
+       */
+      body {
+        width: 1280px;
+        height: 640px;
+        display: grid;
+        grid-template-columns: 1fr 470px;
+        align-items: center;
+        gap: 64px;
+        padding: 0 76px;
+        background: var(--ink);
+        overflow: hidden;
+      }
+
+      /* A faint redline arc bleeding off the right edge — the product's own idea, enlarged */
+      body::after {
+        content: '';
+        position: absolute;
+        top: -190px;
+        right: -300px;
+        width: 780px;
+        height: 780px;
+        border: 76px solid var(--redline);
+        border-radius: 50%;
+        clip-path: inset(0 0 42% 0);
+      }
+
+      .left {
+        position: relative;
+        z-index: 1;
+      }
+
+      .eyebrow {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        font-family: var(--mono);
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--calm);
+        margin-bottom: 30px;
+      }
+
+      .eyebrow::after {
+        content: '';
+        width: 92px;
+        height: 1px;
+        background: color-mix(in srgb, var(--calm) 45%, transparent);
+      }
+
+      h1 {
+        margin: 0 0 22px;
+        font-family: var(--mono);
+        font-size: 76px;
+        font-weight: 600;
+        line-height: 0.98;
+        letter-spacing: -0.035em;
+        color: var(--text);
+      }
+
+      h1 em {
+        display: block;
+        font-style: normal;
+        color: var(--text-faint);
+      }
+
+      p {
+        margin: 0 0 38px;
+        max-width: 480px;
+        font-family: var(--ui);
+        font-size: 20px;
+        line-height: 1.55;
+        color: var(--text-dim);
+      }
+
+      .facts {
+        display: flex;
+        gap: 12px;
+      }
+
+      .fact {
+        padding: 9px 15px;
+        font-family: var(--mono);
+        font-size: 13px;
+        letter-spacing: 0.06em;
+        color: var(--text-dim);
+        border: 1px solid var(--line-strong);
+        border-radius: 7px;
+      }
+
+      /* ---- the widget itself, drawn at 1.5x so it reads in a thumbnail ---- */
+
+      .bar {
+        position: relative;
+        z-index: 1;
+        padding: 17px 18px 15px;
+        background: var(--ink-raised);
+        border: 1px solid var(--line-strong);
+        border-radius: 16px;
+        box-shadow: inset 0 1px 0 var(--highlight), 0 44px 90px rgba(0, 0, 0, 0.6);
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 84px 1fr 48px 82px;
+        align-items: center;
+        gap: 13px;
+        height: 29px;
+      }
+
+      .label {
+        font-family: var(--mono);
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.13em;
+        color: var(--text-faint);
+      }
+
+      .meter {
+        position: relative;
+        height: 9px;
+        border-radius: 1px;
+        background:
+          repeating-linear-gradient(90deg, var(--track) 0 3.6%, transparent 3.6% 5%),
+          linear-gradient(90deg, transparent 0 85%, var(--redline) 85% 100%);
+      }
+
+      .fill {
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(90deg, var(--c) 0 3.6%, transparent 3.6% 5%);
+        clip-path: inset(0 var(--empty) 0 0);
+      }
+
+      .pct {
+        font-family: var(--mono);
+        font-size: 18px;
+        font-weight: 600;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        color: var(--text);
+      }
+
+      .time {
+        font-family: var(--mono);
+        font-size: 15px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        color: var(--text-dim);
+      }
+
+      .strip {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 12px;
+        padding-top: 11px;
+        border-top: 1px solid var(--line);
+        font-family: var(--mono);
+        font-size: 13px;
+        letter-spacing: 0.05em;
+        color: var(--text-faint);
+      }
+
+      .plan {
+        font-weight: 600;
+        letter-spacing: 0.18em;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="left">
+      <div class="eyebrow">Claude Code</div>
+      <h1>Usage<em>at a glance</em></h1>
+      <p>
+        A floating bar that shows how much of your Claude subscription is left, and how
+        long until it resets.
+      </p>
+      <div class="facts">
+        <span class="fact">Windows &amp; macOS</span>
+        <span class="fact">No extra login</span>
+        <span class="fact">MIT</span>
+      </div>
+    </div>
+
+    <div class="bar">
+      <div class="row" style="--c: var(--calm)">
+        <span class="label">SESSION</span>
+        <div class="meter"><div class="fill" style="--empty: 80%"></div></div>
+        <span class="pct">20%</span>
+        <span class="time">1h 40m</span>
+      </div>
+      <div class="row" style="--c: var(--warn)">
+        <span class="label">WEEK</span>
+        <div class="meter"><div class="fill" style="--empty: 32%"></div></div>
+        <span class="pct">68%</span>
+        <span class="time">5d 18h</span>
+      </div>
+      <div class="row" style="--c: var(--alarm)">
+        <span class="label">OPUS</span>
+        <div class="meter"><div class="fill" style="--empty: 9%"></div></div>
+        <span class="pct">91%</span>
+        <span class="time">2d 04h</span>
+      </div>
+      <div class="strip">
+        <span>Updated just now</span>
+        <span class="plan">MAX</span>
+      </div>
+    </div>
+  </body>
+</html>

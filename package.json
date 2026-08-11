@@ -1,0 +1,72 @@
+{
+  "name": "claude-usage-widget",
+  "version": "1.0.0",
+  "description": "Floating always-on-top widget showing Claude Code subscription usage (5-hour and weekly)",
+  "main": "src/main/main.js",
+  "author": "Ali Abdian",
+  "license": "MIT",
+  "homepage": "https://github.com/abdian/widget-usageClaude",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/abdian/widget-usageClaude.git"
+  },
+  "scripts": {
+    "start": "electron .",
+    "icons": "node scripts/make-icons.js",
+    "poster": "electron scripts/make-poster.js",
+    "dist": "npm run icons && electron-builder --win",
+    "dist:mac": "npm run icons && electron-builder --mac",
+    "pack": "npm run icons && electron-builder --dir"
+  },
+  "dependencies": {
+    "koffi": "^3.1.4"
+  },
+  "devDependencies": {
+    "electron": "^43.3.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "dev.esanj.claude-usage-widget",
+    "productName": "Claude Usage",
+    "publish": null,
+    "files": [
+      "src/**/*",
+      "build/icon.*",
+      "node_modules/koffi/**/*"
+    ],
+    "asarUnpack": [
+      "**/*.node",
+      "node_modules/koffi/**/*"
+    ],
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Claude Usage"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.developer-tools"
+    }
+  }
+}

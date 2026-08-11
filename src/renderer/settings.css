@@ -1,0 +1,690 @@
+/*
+ * Settings carries prose, so it switches to the UI face for anything that is a
+ * sentence and keeps the mono face for anything that is a reading.
+ */
+
+body {
+  background: var(--ink);
+  font-family: var(--ui);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------------------------------------------------------------- titlebar */
+
+.titlebar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 42px;
+  padding: 0 10px 0 16px;
+  border-bottom: 1px solid var(--line);
+  -webkit-app-region: drag;
+}
+
+.titlebar-name {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--text-faint);
+  background: none;
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: color 140ms var(--ease), background 140ms var(--ease);
+}
+
+.close:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.close svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+/* -------------------------------------------------------------------- tabs */
+
+/*
+ * The settings had grown into one long scroll where everything competed at once.
+ * Four tabs put each decision with the ones it belongs to, and keep the live
+ * reading above them permanently since that is what the window is really for.
+ */
+.tabs {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  margin: 0 16px;
+  padding: 3px;
+  background: var(--ink-sunken);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.tab {
+  padding: 7px 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 140ms var(--ease), background 140ms var(--ease);
+}
+
+.tab:hover {
+  color: var(--text-dim);
+}
+
+.tab[aria-selected='true'] {
+  color: var(--text);
+  background: var(--ink-raised);
+  box-shadow: inset 0 1px 0 var(--highlight);
+}
+
+.panel-tab[hidden] {
+  display: none;
+}
+
+.rule {
+  height: 1px;
+  margin: 18px 0;
+  background: var(--line);
+}
+
+.sub-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.field-stack {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.btn-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.btn-icon {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
+}
+
+/* ------------------------------------------------------------------- sheet */
+
+.sheet {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 16px 20px;
+}
+
+.sheet::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sheet::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 4px;
+}
+
+/* ---------------------------------------------------------------- readout */
+
+.readout {
+  flex: none;
+  padding: 14px;
+  margin: 16px 16px 14px;
+  background: var(--ink-sunken);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+
+.readout-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.readout-plan {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--calm);
+}
+
+.readout-state {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.readout-rows {
+  display: grid;
+  gap: 11px;
+  margin-bottom: 14px;
+}
+
+.readout-row {
+  display: grid;
+  gap: 5px;
+  --c: var(--calm);
+}
+
+.readout-row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: var(--mono);
+}
+
+.readout-row-name {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.readout-row-value {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--c);
+}
+
+.readout-row-reset {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.readout-meter {
+  position: relative;
+  height: 6px;
+  border-radius: 1px;
+  background:
+    repeating-linear-gradient(90deg, var(--track) 0 3.6%, transparent 3.6% 5%),
+    linear-gradient(90deg, transparent 0 85%, var(--redline) 85% 100%);
+}
+
+.readout-meter span {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, var(--c) 0 3.6%, transparent 3.6% 5%);
+  clip-path: inset(0 var(--empty, 100%) 0 0);
+  transition: clip-path 620ms var(--ease);
+}
+
+/* ------------------------------------------------------------------ groups */
+
+.group {
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.group-last {
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom: 0;
+}
+
+.group-title {
+  margin: 0 0 12px;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.field {
+  margin-bottom: 14px;
+}
+
+.field:last-child {
+  margin-bottom: 0;
+}
+
+.field-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.field-text {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.field-label {
+  display: block;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.field-help {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-faint);
+}
+
+/* ---------------------------------------------------------------- controls */
+
+.control {
+  width: 100%;
+  margin-top: 7px;
+  padding: 8px 10px;
+  font-family: var(--ui);
+  font-size: 13px;
+  color: var(--text);
+  background: var(--ink-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.control:hover {
+  border-color: color-mix(in srgb, var(--calm) 45%, transparent);
+}
+
+.slider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 9px;
+}
+
+.slider {
+  flex: 1;
+  height: 3px;
+  appearance: none;
+  background: var(--track);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  background: var(--calm);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.slider-value {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+  min-width: 34px;
+  text-align: right;
+}
+
+.switch {
+  flex: none;
+  position: relative;
+  width: 36px;
+  height: 20px;
+  padding: 0;
+  background: var(--track);
+  border: 1px solid var(--line-strong);
+  border-radius: 11px;
+  cursor: pointer;
+  transition: background 160ms var(--ease), border-color 160ms var(--ease);
+}
+
+.switch span {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background: var(--text-faint);
+  border-radius: 50%;
+  transition: transform 160ms var(--ease), background 160ms var(--ease);
+}
+
+.switch[aria-checked='true'] {
+  background: color-mix(in srgb, var(--calm) 42%, transparent);
+  border-color: var(--calm);
+}
+
+.switch[aria-checked='true'] span {
+  background: var(--calm);
+  transform: translateX(16px);
+}
+
+.btn {
+  padding: 8px 14px;
+  font-family: var(--ui);
+  font-size: 12.5px;
+  color: var(--text);
+  background: var(--ink-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease);
+}
+
+.btn:hover {
+  background: color-mix(in srgb, var(--calm) 16%, var(--ink-raised));
+  border-color: color-mix(in srgb, var(--calm) 45%, transparent);
+}
+
+.btn-quiet {
+  width: 100%;
+}
+
+/* --------------------------------------------------------- position picker */
+
+/*
+ * A miniature of your screen. Each cell holds a scaled-down bar sitting where
+ * the real one would sit, so the control shows the outcome rather than naming it.
+ */
+.screen {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 2px;
+
+  /* A thumbnail, not a diagram — big enough to aim at, small enough to skim past. */
+  width: 176px;
+  aspect-ratio: 16 / 10;
+  margin: 0 auto;
+  padding: 5px;
+
+  background: var(--ink-sunken);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+}
+
+.spot {
+  display: grid;
+  padding: 2px;
+  background: none;
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 140ms var(--ease);
+}
+
+.spot:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.spot i {
+  width: 80%;
+  height: 3px;
+  background: var(--track);
+  border-radius: 2px;
+  transition: background 160ms var(--ease);
+}
+
+.spot:hover i {
+  background: var(--line-strong);
+}
+
+.spot[aria-checked='true'] i {
+  background: var(--calm);
+}
+
+/* Place each miniature where its anchor would actually put the bar. */
+.spot:nth-child(-n + 3) {
+  align-content: start;
+}
+
+.spot:nth-child(n + 4):nth-child(-n + 6) {
+  align-content: center;
+}
+
+.spot:nth-child(n + 7) {
+  align-content: end;
+}
+
+.spot:nth-child(3n + 1) {
+  justify-items: start;
+}
+
+.spot:nth-child(3n + 2) {
+  justify-items: center;
+}
+
+.spot:nth-child(3n) {
+  justify-items: end;
+}
+
+.screen-caption {
+  margin: 8px 0 15px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+/* ------------------------------------------------------------- checkboxes */
+
+.checks {
+  display: grid;
+  gap: 2px;
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 9px 10px;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 140ms var(--ease);
+}
+
+.check:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.check-box {
+  flex: none;
+  position: relative;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  background: var(--ink-sunken);
+  border: 1.5px solid var(--line-strong);
+  border-radius: 4px;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease);
+}
+
+.check[aria-checked='true'] .check-box {
+  background: var(--calm);
+  border-color: var(--calm);
+}
+
+/* Tick drawn with two borders so it needs no icon file */
+.check-box::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 4.5px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--ink);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) scale(0.6);
+  opacity: 0;
+  transition: opacity 120ms var(--ease), transform 120ms var(--ease);
+}
+
+.check[aria-checked='true'] .check-box::after {
+  opacity: 1;
+  transform: rotate(45deg) scale(1);
+}
+
+.check-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.check-name {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.check-note {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-faint);
+}
+
+.check[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.check[aria-disabled='true']:hover {
+  background: none;
+}
+
+/* ------------------------------------------------------------------- about */
+
+.about {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  background: var(--ink-sunken);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+
+.about-mark {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  transform: rotate(135deg); /* start the dial at the lower left, like the icon */
+}
+
+.about-mark-track,
+.about-mark-fill {
+  fill: none;
+  stroke-width: 7;
+  stroke-linecap: butt;
+}
+
+.about-mark-track {
+  stroke: var(--track);
+  stroke-dasharray: 80.1 26.7; /* 75% of the circle drawn, 25% left open */
+}
+
+.about-mark-fill {
+  stroke: var(--calm);
+  stroke-dasharray: 54.5 52.3; /* 68% of the dial's sweep */
+}
+
+.about-text {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.about-name {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--calm);
+}
+
+.about-line {
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.about-by {
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.about-meta {
+  margin-top: 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+/* -------------------------------------------------------------------- misc */
+
+.note {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-dim);
+}
+
+.path {
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+  word-break: break-all;
+  background: var(--ink-sunken);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.footer {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  text-align: center;
+}

@@ -1,0 +1,75 @@
+/*
+ * Shared design tokens.
+ *
+ * Direction: an instrument, not a dashboard. Warm ink rather than blue-black,
+ * clay borrowed from Claude's own identity, and colour spent on severity so the
+ * widget stays quiet until the numbers actually deserve attention.
+ */
+
+:root {
+  /* Surface — warm, brown-shifted dark so it reads as a device, not a browser chrome */
+  --ink: #191412;
+  --ink-raised: #221b17;
+  --ink-sunken: #120e0c;
+
+  /* Structure */
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --highlight: rgba(255, 255, 255, 0.1);
+
+  /* Text */
+  --text: #f2e9e3;
+  --text-dim: #a99b93;
+  --text-faint: #6f635c;
+
+  /* Severity ramp — the only place colour is allowed to mean something */
+  --calm: #d97757;
+  --warn: #e0a03c;
+  --alarm: #e05252;
+
+  /* Meter */
+  --track: rgba(255, 255, 255, 0.09);
+  --redline: rgba(224, 82, 82, 0.14);
+
+  /* Type */
+  --mono: "Cascadia Mono", ui-monospace, "SF Mono", "Consolas", "DejaVu Sans Mono", monospace;
+  --ui: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--mono);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+
+:focus-visible {
+  outline: 1.5px solid var(--calm);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

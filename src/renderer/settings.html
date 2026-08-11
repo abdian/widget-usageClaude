@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self' data:;" />
+    <title>Claude Usage settings</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="settings.css" />
+  </head>
+  <body>
+    <header class="titlebar">
+      <span class="titlebar-name">Claude Usage</span>
+      <button class="close" id="closeBtn" type="button" aria-label="Close settings">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+      </button>
+    </header>
+
+    <!-- The live reading stays put; the tabs below it are for changing things -->
+    <section class="readout" id="readout">
+      <div class="readout-head">
+        <span class="readout-plan" id="plan">Claude</span>
+        <span class="readout-state" id="readoutState">Loading…</span>
+      </div>
+      <div class="readout-rows" id="readoutRows"></div>
+      <button class="btn btn-quiet" id="refreshNow" type="button">Refresh now</button>
+    </section>
+
+    <nav class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="meters" aria-selected="true">Meters</button>
+      <button class="tab" role="tab" data-tab="look" aria-selected="false">Look</button>
+      <button class="tab" role="tab" data-tab="place" aria-selected="false">Place</button>
+      <button class="tab" role="tab" data-tab="about" aria-selected="false">About</button>
+    </nav>
+
+    <main class="sheet">
+      <!-- ------------------------------------------------------------ Meters -->
+      <section class="panel-tab" data-panel="meters">
+        <p class="note">Pick which limits the bar draws.</p>
+
+        <div class="checks">
+          <button class="check" id="mSession" type="button" role="checkbox" aria-checked="true">
+            <span class="check-box"></span>
+            <span class="check-text">
+              <span class="check-name">5-hour session</span>
+              <span class="check-note">Resets every 5 hours</span>
+            </span>
+          </button>
+
+          <button class="check" id="mWeek" type="button" role="checkbox" aria-checked="true">
+            <span class="check-box"></span>
+            <span class="check-text">
+              <span class="check-name">Weekly, all models</span>
+              <span class="check-note">Resets weekly</span>
+            </span>
+          </button>
+
+          <button class="check" id="mScoped" type="button" role="checkbox" aria-checked="false">
+            <span class="check-box"></span>
+            <span class="check-text">
+              <span class="check-name">Weekly, per model</span>
+              <span class="check-note" id="scopedNote">The separate cap on one model</span>
+            </span>
+          </button>
+
+          <button class="check" id="mCredit" type="button" role="checkbox" aria-checked="false">
+            <span class="check-box"></span>
+            <span class="check-text">
+              <span class="check-name">Extra usage credit</span>
+              <span class="check-note" id="creditNote">Only if credits are switched on</span>
+            </span>
+          </button>
+        </div>
+
+        <div class="field field-stack">
+          <label class="field-label" for="interval">Check for new usage every</label>
+          <span class="field-help">Usage moves slowly, and checking too often trips Anthropic's rate limit.</span>
+          <select class="control" id="interval">
+            <option value="120">2 minutes</option>
+            <option value="300">5 minutes</option>
+            <option value="600">10 minutes</option>
+            <option value="900">15 minutes</option>
+            <option value="1800">30 minutes</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- -------------------------------------------------------------- Look -->
+      <section class="panel-tab" data-panel="look" hidden>
+        <div class="field">
+          <label class="field-label" for="opacity">Opacity</label>
+          <div class="slider-wrap">
+            <input class="slider" id="opacity" type="range" min="40" max="100" step="1" />
+            <span class="slider-value" id="opacityValue">96%</span>
+          </div>
+        </div>
+
+        <div class="field field-toggle">
+          <div class="field-text">
+            <span class="field-label">Compact size</span>
+            <span class="field-help">A much smaller bar with short labels and no buttons. Right-click it for everything.</span>
+          </div>
+          <button class="switch" id="compact" type="button" role="switch" aria-checked="false"><span></span></button>
+        </div>
+
+        <div class="field field-toggle">
+          <div class="field-text">
+            <span class="field-label">Show last refresh time</span>
+            <span class="field-help">The strip along the bottom. It still appears if a refresh fails.</span>
+          </div>
+          <button class="switch" id="refreshTime" type="button" role="switch" aria-checked="true"><span></span></button>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------------------- Place -->
+      <section class="panel-tab" data-panel="place" hidden>
+        <p class="note">Pick a spot and the bar returns to it every time it starts.</p>
+
+        <div class="screen" id="screen" role="radiogroup" aria-label="Widget position">
+          <button class="spot" type="button" role="radio" data-anchor="top-left" aria-label="Top left"><i></i></button>
+          <button class="spot" type="button" role="radio" data-anchor="top-center" aria-label="Top center"><i></i></button>
+          <button class="spot" type="button" role="radio" data-anchor="top-right" aria-label="Top right"><i></i></button>
+          <button class="spot" type="button" role="radio" data-anchor="middle-left" aria-label="Middle left"><i></i></button>
+          <button class="spot" type="button" role="radio" data-anchor="middle-center" aria-label="Middle center"><i></i></button>
+          <button class="spot" type="button" role="radio" data-anchor="middle-right" aria-label="Middle right"><i></i></button>
+          <button class="spot" type="button" role="radio" data-anchor="bottom-left" aria-label="Bottom left"><i></i></button>
+          <button class="spot" type="button" role="radio" data-anchor="bottom-center" aria-label="Bottom center"><i></i></button>
+          <button class="spot" type="button" role="radio" data-anchor="bottom-right" aria-label="Bottom right"><i></i></button>
+        </div>
+
+        <p class="screen-caption" id="anchorCaption">Bottom right</p>
+
+        <div class="field field-toggle">
+          <div class="field-text">
+            <span class="field-label">Allow over the taskbar</span>
+            <span class="field-help">Bottom positions sit on the taskbar instead of above it</span>
+          </div>
+          <button class="switch" id="overTaskbar" type="button" role="switch" aria-checked="false"><span></span></button>
+        </div>
+
+        <div class="field field-toggle">
+          <div class="field-text">
+            <span class="field-label">Lock position</span>
+            <span class="field-help">Stops the bar from being dragged by accident</span>
+          </div>
+          <button class="switch" id="lock" type="button" role="switch" aria-checked="false"><span></span></button>
+        </div>
+
+        <div class="rule"></div>
+
+        <div class="field field-toggle">
+          <div class="field-text">
+            <span class="field-label">Keep on top of other windows</span>
+          </div>
+          <button class="switch" id="onTop" type="button" role="switch" aria-checked="false"><span></span></button>
+        </div>
+
+        <div class="field field-toggle">
+          <div class="field-text">
+            <span class="field-label">Stay above fullscreen apps</span>
+            <span class="field-help">Off, the bar steps aside for fullscreen video and returns when it ends</span>
+          </div>
+          <button class="switch" id="aboveFullscreen" type="button" role="switch" aria-checked="false"><span></span></button>
+        </div>
+
+        <div class="field field-toggle">
+          <div class="field-text">
+            <span class="field-label">Click through the bar</span>
+            <span class="field-help">Clicks pass to whatever is behind it. Turn back off from the tray icon.</span>
+          </div>
+          <button class="switch" id="clickThrough" type="button" role="switch" aria-checked="false"><span></span></button>
+        </div>
+
+        <div class="field field-toggle">
+          <div class="field-text">
+            <span class="field-label" id="loginLabel">Start when Windows starts</span>
+            <span class="field-help">Comes back in the same place with the same settings</span>
+          </div>
+          <button class="switch" id="startup" type="button" role="switch" aria-checked="false"><span></span></button>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------------------- About -->
+      <section class="panel-tab" data-panel="about" hidden>
+        <div class="about">
+          <!-- The same 270° dial the app icon uses -->
+          <svg class="about-mark" viewBox="0 0 48 48" aria-hidden="true">
+            <circle class="about-mark-track" cx="24" cy="24" r="17" />
+            <circle class="about-mark-fill" cx="24" cy="24" r="17" />
+          </svg>
+
+          <div class="about-text">
+            <span class="about-name" id="aboutName">Claude Usage</span>
+            <span class="about-line" id="aboutVersion"></span>
+            <span class="about-by" id="aboutAuthor"></span>
+          </div>
+        </div>
+
+        <button class="btn btn-quiet btn-link" id="repoLink" type="button">
+          <svg viewBox="0 0 16 16" aria-hidden="true" class="btn-icon">
+            <path d="M8 .8a7.2 7.2 0 0 0-2.28 14c.36.07.5-.15.5-.35v-1.24c-2 .44-2.43-.96-2.43-.96-.33-.84-.8-1.06-.8-1.06-.66-.45.05-.44.05-.44.73.05 1.11.75 1.11.75.65 1.1 1.7.79 2.11.6.07-.47.25-.79.46-.97-1.6-.18-3.28-.8-3.28-3.56 0-.79.28-1.43.75-1.93-.08-.19-.33-.92.07-1.92 0 0 .6-.2 1.98.73a6.9 6.9 0 0 1 3.6 0c1.38-.93 1.98-.73 1.98-.73.4 1 .15 1.73.07 1.92.47.5.75 1.14.75 1.93 0 2.77-1.69 3.38-3.29 3.56.26.22.49.66.49 1.33v1.97c0 .2.13.42.5.35A7.2 7.2 0 0 0 8 .8z" />
+          </svg>
+          View on GitHub
+        </button>
+
+        <div class="rule"></div>
+
+        <h3 class="sub-title">Account</h3>
+        <p class="note">
+          Usage is read with the Claude Code sign-in already on this computer. Nothing is stored
+          by this app and no separate login is needed.
+        </p>
+        <div class="path" id="credPath"></div>
+        <button class="btn btn-quiet" id="openFolder" type="button">Show credentials file</button>
+
+        <div class="about-meta"><span id="aboutRuntime"></span></div>
+      </section>
+    </main>
+
+    <script src="settings.js"></script>
+  </body>
+</html>
