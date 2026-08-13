@@ -15,7 +15,10 @@ const {
 const store = require('./store');
 const pkg = require('../../package.json');
 const { fetchUsage, UsageError, credentialsPath } = require('./usage');
-const { foregroundIsFullscreen, isAvailable: fullscreenDetectionAvailable } = require('./fullscreen');
+const {
+  foregroundIsFullscreen,
+  isAvailable: fullscreenDetectionAvailable,
+} = require('./fullscreen');
 
 let barWindow = null;
 let settingsWindow = null;
@@ -54,6 +57,79 @@ const ANCHORS = {
 // yields dead space. Compact is designed to land on it rather than fight it.
 const MIN_WINDOW_HEIGHT = 64;
 
+/* ------------------------------------------------------------- notch mode */
+
+/*
+ * The camera housing is one fixed physical part, and the menu bar is grown to
+ * clear it — 33pt on a notched Mac against about 25pt without one. That makes the
+ * menu bar height both the detector and the ruler: housing width and the bar it
+ * forces are locked in proportion, so measuring the height Electron does report
+ * yields the width it does not, under any display scaling.
+ *
+ * Calibrated on a 14" MacBook Pro at default scaling, where a 33pt menu bar sits
+ * over a notch that NSScreen puts at 663..848 — 185pt between the two auxiliary
+ * areas. The painted black edge sits a point inside that on the left, so 184 is
+ * what actually lines up; the reported figure evidently includes the boundary
+ * column rather than stopping at it. 184 also divides the leftover screen evenly
+ * (1512 - 184 = 1328), so the centring lands on a whole point with no rounding
+ * left to argue about.
+ */
+const NOTCH_MENU_BAR_MIN = 28;
+const NOTCH_WIDTH_PER_MENU_BAR_PT = 184 / 33;
+/*
+ * How far the black shell reaches up *into* the real notch, and how far it shows
+ * below it.
+ *
+ * The overlap is the whole trick. The camera housing's bottom corners curve
+ * inward, so a shell starting flush with the menu bar meets a shape narrower than
+ * itself: a seam across the join and a square ear sticking out either side of it.
+ * Starting above where that curve begins puts the shell's top edge against the
+ * housing at full width, fills the two curved corners with the same black, and
+ * leaves one silhouette — straight sides running down to a single rounded edge.
+ *
+ * The overlap sits over the housing, where there is no menu bar content to hide.
+ */
+const NOTCH_OVERLAP = 12;
+
+/*
+ * How far it shows below. This is a shape, not a hairline with a backdrop: too
+ * shallow and the corner radius eats the whole height, which turns the shell into
+ * a floating pill instead of the housing growing. Fourteen leaves real straight
+ * side wall above the corners, so the silhouette still reads as the notch.
+ */
+const NOTCH_EXTENSION = 14;
+
+function notchGeometry() {
+  if (process.platform !== 'darwin') return null;
+
+  // The notch belongs to the laptop's own screen, so an external monitor being
+  // the primary display must not drag the hairline onto it.
+  const display =
+    screen.getAllDisplays().find((d) => d.internal) ||
+    screen.getPrimaryDisplay();
+
+  const menuBar = display.workArea.y - display.bounds.y;
+  if (menuBar < NOTCH_MENU_BAR_MIN) return null;
+
+  const width = Math.round(menuBar * NOTCH_WIDTH_PER_MENU_BAR_PT);
+
+  return {
+    // Floor, not round: the housing is centred on the panel, so on a screen with
+    // an odd amount of room beside it the true edge falls on a half point — and
+    // macOS resolves that downward. Rounding lands the hairline a point right of
+    // the notch it is meant to sit under.
+    x: Math.floor(display.bounds.x + (display.bounds.width - width) / 2),
+    y: display.bounds.y + menuBar - NOTCH_OVERLAP,
+    width,
+    height: NOTCH_OVERLAP + NOTCH_EXTENSION,
+  };
+}
+
+/** Null unless the setting is on *and* there is a notch to sit under. */
+function notchBounds(settings) {
+  return settings.notchMode ? notchGeometry() : null;
+}
+
 /**
  * The strip is shown whenever it has something to say: either you asked to see
  * the refresh time, or a refresh failed and the reason belongs somewhere.
@@ -83,11 +159,23 @@ function rowsFor(settings) {
  * which keeps this honest without duplicating the CSS here.
  */
 function sizeFor(settings, showStrip) {
+  // A fixed hairline: no rows to count, and none of the floors below apply.
+  const notch = notchBounds(settings);
+  if (notch) {
+    return {
+      width: notch.width,
+      panelHeight: notch.height,
+      height: notch.height,
+    };
+  }
+
   const rows = rowsFor(settings);
   const compact = Boolean(settings.compact);
 
   // Keep these in step with bar.css: .row height + .meters gap, per mode.
-  const meters = compact ? rows * 13 + (rows - 1) * 2 : rows * 18 + (rows - 1) * 4;
+  const meters = compact
+    ? rows * 13 + (rows - 1) * 2
+    : rows * 18 + (rows - 1) * 4;
   const chrome = compact ? 14 : 20; // panel padding + borders
   const strip = showStrip ? (compact ? 15 : 22) : 0;
 
@@ -109,8 +197,12 @@ function anchoredPosition(anchor, width, height) {
   const area = store.get('overTaskbar') ? display.bounds : display.workArea;
 
   return {
-    x: Math.round(area.x + EDGE_MARGIN + (area.width - width - EDGE_MARGIN * 2) * fx),
-    y: Math.round(area.y + EDGE_MARGIN + (area.height - height - EDGE_MARGIN * 2) * fy),
+    x: Math.round(
+      area.x + EDGE_MARGIN + (area.width - width - EDGE_MARGIN * 2) * fx,
+    ),
+    y: Math.round(
+      area.y + EDGE_MARGIN + (area.height - height - EDGE_MARGIN * 2) * fy,
+    ),
   };
 }
 
@@ -124,17 +216,30 @@ function anchoredPosition(anchor, width, height) {
  * taller than the box you can see; the transparent margin is allowed off-screen.
  */
 function clampToDisplay(pos, width, height, panelHeight = height) {
-  const nearest = screen.getDisplayMatching({ x: pos.x, y: pos.y, width, height });
+  const nearest = screen.getDisplayMatching({
+    x: pos.x,
+    y: pos.y,
+    width,
+    height,
+  });
   const area = store.get('overTaskbar') ? nearest.bounds : nearest.workArea;
   const spare = Math.round((height - panelHeight) / 2);
 
   return {
     x: Math.min(Math.max(pos.x, area.x), area.x + area.width - width),
-    y: Math.min(Math.max(pos.y, area.y - spare), area.y + area.height - height + spare),
+    y: Math.min(
+      Math.max(pos.y, area.y - spare),
+      area.y + area.height - height + spare,
+    ),
   };
 }
 
 function targetBounds(settings) {
+  // The notch is the position, so anchor, saved position and clamping all sit
+  // this one out — there is exactly one place this bar can go.
+  const notch = notchBounds(settings);
+  if (notch) return notch;
+
   const { width, height, panelHeight } = sizeFor(settings, stripVisible());
 
   if (settings.anchor && settings.anchor !== 'free') {
@@ -145,8 +250,13 @@ function targetBounds(settings) {
     return { x: spot.x, y: spot.y - spare, width, height };
   }
 
-  const stored = settings.position || anchoredPosition('bottom-right', width, panelHeight);
-  return { ...clampToDisplay(stored, width, height, panelHeight), width, height };
+  const stored =
+    settings.position || anchoredPosition('bottom-right', width, panelHeight);
+  return {
+    ...clampToDisplay(stored, width, height, panelHeight),
+    width,
+    height,
+  };
 }
 
 function placeWindow() {
@@ -184,7 +294,8 @@ function syncTopmostGuard() {
 
     // Hold position against the taskbar, but stand down for a fullscreen app —
     // that is the whole reason this checks instead of just raising itself.
-    const yieldToFullscreen = !settings.stayAboveFullscreen && foregroundIsFullscreen();
+    const yieldToFullscreen =
+      !settings.stayAboveFullscreen && foregroundIsFullscreen();
 
     if (yieldToFullscreen) {
       if (!steppedAside) {
@@ -237,6 +348,24 @@ function createBar() {
     fullscreenable: false,
     skipTaskbar: true,
     hasShadow: false, // the panel draws its own edge so the transparent margin stays clean
+
+    /*
+     * macOS, and the only way notch mode can reach the menu bar strip. AppKit
+     * quietly rewrites any frame that crosses into it — raising the window level
+     * is not enough — and this is the one switch that turns that off. It can only
+     * be set at construction, so it is set always; nothing is placed off-screen by
+     * it, because clampToDisplay already owns where a free-placed bar may sit.
+     */
+    enableLargerThanScreen: true,
+
+    /*
+     * macOS rounds a frameless window's corners itself, and that clip outranks any
+     * radius CSS asks for. It rounds all four, so notch mode got a stadium: the top
+     * arcs curved back in below the housing's bottom edge and pinched the sides at
+     * exactly the join meant to be invisible. Off, the radius is decided in one
+     * place — bar.css — which is also where .panel has always drawn its own.
+     */
+    roundedCorners: false,
     show: false,
     alwaysOnTop: settings.alwaysOnTop,
     movable: !settings.lockPosition, // correct from birth, so there is no movable moment
@@ -305,14 +434,26 @@ function applyWindowSettings() {
   if (!barWindow || barWindow.isDestroyed()) return;
   const settings = store.all();
 
+  const notch = notchBounds(settings);
+
+  /*
+   * Notch mode overrides both of these, because it cannot work without them.
+   * AppKit refuses to place a window at 'floating' level inside the menu bar
+   * strip — it silently clamps the frame back below it, which lands the shell
+   * flush against the housing and brings back the seam the overlap exists to
+   * remove. Only a window above the status level is left unconstrained, and a
+   * window that is not on top has no business being at that level.
+   */
   barWindow.setAlwaysOnTop(
-    settings.alwaysOnTop,
-    settings.stayAboveFullscreen ? 'screen-saver' : 'floating'
+    notch ? true : settings.alwaysOnTop,
+    notch || settings.stayAboveFullscreen ? 'screen-saver' : 'floating',
   );
   barWindow.setVisibleOnAllWorkspaces(true, {
     visibleOnFullScreen: Boolean(settings.stayAboveFullscreen),
   });
-  barWindow.setMovable(!settings.lockPosition);
+  // Nothing to drag in notch mode: the bar has one home and dragging it off
+  // would only strand it somewhere the setting no longer describes.
+  barWindow.setMovable(!settings.lockPosition && !notchBounds(settings));
   barWindow.setIgnoreMouseEvents(settings.clickThrough, { forward: true });
   placeWindow();
   syncTopmostGuard();
@@ -343,7 +484,9 @@ function openSettings() {
 
   sealNavigation(settingsWindow);
 
-  settingsWindow.loadFile(path.join(__dirname, '..', 'renderer', 'settings.html'));
+  settingsWindow.loadFile(
+    path.join(__dirname, '..', 'renderer', 'settings.html'),
+  );
   settingsWindow.once('ready-to-show', () => settingsWindow.show());
   settingsWindow.on('closed', () => {
     settingsWindow = null;
@@ -383,6 +526,19 @@ function menuTemplate() {
       checked: Boolean(settings.compact),
       click: (item) => update({ compact: item.checked }),
     },
+    // Offered only where there is a notch to sit under. This is also the way back
+    // out: a three-pixel hairline is a poor right-click target, so the escape
+    // hatch has to live somewhere that is not the bar itself.
+    ...(notchGeometry()
+      ? [
+          {
+            label: 'Notch mode',
+            type: 'checkbox',
+            checked: Boolean(settings.notchMode),
+            click: (item) => update({ notchMode: item.checked }),
+          },
+        ]
+      : []),
     {
       label: 'Position',
       submenu: [
@@ -431,7 +587,7 @@ function menuTemplate() {
 
 function trayIcon() {
   const image = nativeImage.createFromPath(
-    path.join(__dirname, '..', '..', 'build', 'icon.png')
+    path.join(__dirname, '..', '..', 'build', 'icon.png'),
   );
   if (image.isEmpty()) return nativeImage.createEmpty();
   return image.resize({ width: 16, height: 16 });
@@ -476,7 +632,9 @@ function updateTray() {
     const session = lastGood.session?.percent ?? 0;
     const week = lastGood.week?.percent ?? 0;
     const suffix = lastFailure ? ' (not updating)' : '';
-    tray.setToolTip(`Claude Usage — session ${session}%, week ${week}%${suffix}`);
+    tray.setToolTip(
+      `Claude Usage — session ${session}%, week ${week}%${suffix}`,
+    );
   } else {
     tray.setToolTip('Claude Usage');
   }
@@ -576,7 +734,10 @@ function registerIpc() {
     // Read the stored value back rather than the patch: the store is what decides
     // whether a setting was acceptable, so it is what the registry should follow.
     if (patch && 'startAtLogin' in patch) {
-      app.setLoginItemSettings({ openAtLogin: Boolean(next.startAtLogin), openAsHidden: true });
+      app.setLoginItemSettings({
+        openAtLogin: Boolean(next.startAtLogin),
+        openAsHidden: true,
+      });
     }
     if (patch && 'refreshSeconds' in patch) {
       schedulePolling();
@@ -592,17 +753,25 @@ function registerIpc() {
 
   // A window that opens after a poll has already run needs both halves of the
   // picture, otherwise it sits on "Loading…" until the next tick.
-  ipcMain.handle('usage:current', () => ({ data: lastGood, error: lastFailure }));
+  ipcMain.handle('usage:current', () => ({
+    data: lastGood,
+    error: lastFailure,
+  }));
 
   ipcMain.handle('app:info', () => ({
     name: 'Claude Usage',
     version: app.getVersion(),
-    author: typeof pkg.author === 'string' ? pkg.author : pkg.author?.name || '',
+    author:
+      typeof pkg.author === 'string' ? pkg.author : pkg.author?.name || '',
     homepage: pkg.homepage || '',
     electron: process.versions.electron,
     chrome: process.versions.chrome,
     credentialsPath: credentialsPath(),
     platform: process.platform,
+
+    // Settings hides the notch toggle unless this machine actually has one,
+    // rather than offering a switch that would place the bar nowhere.
+    hasNotch: Boolean(notchGeometry()),
 
     // Surfaced in About: if this is ever false on Windows, the bar cannot tell a
     // fullscreen app from the taskbar and will not step aside for video.
@@ -610,7 +779,10 @@ function registerIpc() {
   }));
 
   ipcMain.on('window:open-settings', openSettings);
-  ipcMain.on('window:close-settings', () => settingsWindow && settingsWindow.close());
+  ipcMain.on(
+    'window:close-settings',
+    () => settingsWindow && settingsWindow.close(),
+  );
   ipcMain.on('window:hide-bar', () => {
     if (barWindow) barWindow.hide();
     updateTray();
@@ -618,6 +790,10 @@ function registerIpc() {
   // The renderer measures itself, so this is a report rather than an instruction:
   // bound it to what a panel could plausibly be before it becomes a window size.
   ipcMain.on('window:panel-height', (_event, value) => {
+    // The hairline's height is decided here, not measured there; letting a
+    // report through would only fight the fixed bounds notch mode just set.
+    if (notchBounds(store.all())) return;
+
     const height = Math.round(Number(value) || 0);
     if (height < 8 || height > 600 || height === reportedPanelHeight) return;
     reportedPanelHeight = height;
@@ -627,9 +803,12 @@ function registerIpc() {
   ipcMain.on('window:context-menu', () => {
     Menu.buildFromTemplate(menuTemplate()).popup({ window: barWindow });
   });
-  ipcMain.on('shell:open-credentials-folder', () => shell.showItemInFolder(credentialsPath()));
+  ipcMain.on('shell:open-credentials-folder', () =>
+    shell.showItemInFolder(credentialsPath()),
+  );
   ipcMain.on('shell:open-external', (_event, url) => {
-    if (typeof url === 'string' && /^https:\/\//.test(url)) shell.openExternal(url);
+    if (typeof url === 'string' && /^https:\/\//.test(url))
+      shell.openExternal(url);
   });
 }
 
@@ -663,7 +842,11 @@ if (!app.requestSingleInstanceLock()) {
 
     // An anchored bar should follow the screen it is anchored to, not drift off
     // it when a monitor is added, removed, or rescaled.
-    for (const event of ['display-metrics-changed', 'display-added', 'display-removed']) {
+    for (const event of [
+      'display-metrics-changed',
+      'display-added',
+      'display-removed',
+    ]) {
       screen.on(event, () => placeWindow());
     }
 

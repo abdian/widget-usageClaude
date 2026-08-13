@@ -18,6 +18,17 @@ const DEFAULTS = {
   compact: false,
   opacity: 0.96,
 
+  /*
+   * macOS only, and only on a Mac that has a camera housing to sit under. Drops
+   * everything except a hairline of the 5-hour session, pinned below the notch.
+   * It ignores anchor, position and compact entirely — the notch is the position.
+   *
+   * Spread in rather than declared, so off macOS the key does not exist at all:
+   * it never reaches settings.json, and the validator below drops any patch that
+   * names it. A Windows build has no such setting to set.
+   */
+  ...(process.platform === 'darwin' ? { notchMode: false } : {}),
+
   // Which meters to draw. Session and week are the two that always exist; the
   // other two only appear when the account actually reports them.
   showSession: true,
@@ -104,6 +115,9 @@ const VALIDATORS = {
   lockPosition: bool,
   clickThrough: bool,
   compact: bool,
+  // Absent off macOS, so sanitize() treats notchMode as an unknown key and drops
+  // it — including out of a settings.json copied over from a Mac.
+  ...(process.platform === 'darwin' ? { notchMode: bool } : {}),
   showSession: bool,
   showWeek: bool,
   showScopedWeekly: bool,

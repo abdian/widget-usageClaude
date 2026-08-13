@@ -12,6 +12,8 @@ const stripEl = document.getElementById('strip');
 const stripState = document.getElementById('stripState');
 const stripRetry = document.getElementById('stripRetry');
 const stripPlan = document.getElementById('stripPlan');
+const notchBar = document.getElementById('notchBar');
+const notchFill = document.getElementById('notchFill');
 
 const rows = {
   session: metersEl.querySelector('[data-meter="session"]'),
@@ -24,6 +26,7 @@ let settings = {};
 let latest = null; // last successful reading, kept so the countdowns keep running while offline
 let failure = null;
 let loading = false;
+let hasNotch = false; // answered by the main process, which is the only side that can measure one
 
 /* ---------------------------------------------------------------- helpers */
 
@@ -69,6 +72,19 @@ function severity(percent) {
 
 function isBlocked() {
   return failure?.kind === 'no-credentials' || failure?.kind === 'expired';
+}
+
+/**
+ * The setting on its own is not enough to switch layouts on.
+ *
+ * Only the main process can tell whether there is a notch, and it is already
+ * refusing to place the window under one that does not exist. Reading the flag
+ * alone would let the two disagree — the panel hidden and a hairline drawn inside
+ * a full-sized window — which is what a settings.json carried over from a Mac, or
+ * a Mac with no notch of its own, would otherwise produce.
+ */
+function notchActive() {
+  return hasNotch && Boolean(settings.notchMode);
 }
 
 /* ------------------------------------------------------------------ render */
@@ -167,7 +183,60 @@ function showNotice(title, detail) {
   document.getElementById('retry').hidden = throttleSecondsLeft() > 0;
 }
 
+/*
+ * The session window is a fixed five hours ending at resets_at, which is the only
+ * reason the wait can be drawn as a proportion at all: the API gives the far end
+ * of the window, and its length is what turns that into a position within it.
+ */
+const SESSION_WINDOW_MS = 5 * 60 * 60 * 1000;
+
+/** True once the 5-hour allowance is spent and only the clock is still moving. */
+function isDepleted() {
+  return (latest?.session?.percent ?? 0) >= 100;
+}
+
+/** How far through the session window we are now, 0–100. */
+function resetProgress(iso) {
+  if (!iso) return 0;
+  const remaining = new Date(iso).getTime() - Date.now();
+  if (Number.isNaN(remaining)) return 0;
+
+  const elapsed = SESSION_WINDOW_MS - remaining;
+  return Math.min(100, Math.max(0, (elapsed / SESSION_WINDOW_MS) * 100));
+}
+
+/**
+ * Notch mode's entire render. Always the 5-hour session, whatever the meter
+ * checkboxes say — those pick rows for a bar that has no rows here, and a mode
+ * defined as "the session, as a hairline" should not be switchable to empty.
+ *
+ * At 100% the meter changes what it measures. A full bar that stays full says
+ * nothing for the hours it stays that way, so once there is no allowance left to
+ * track it switches to the wait for the next one and fills as the reset comes up.
+ * The colour is what marks the change of subject — with no label to read, it is
+ * the only thing that can.
+ */
+function paintNotch() {
+  const blocked = isBlocked();
+  document.body.classList.toggle('is-stale', Boolean(failure) && !blocked);
+  document.body.classList.toggle('is-blocked', blocked);
+
+  const depleted = isDepleted();
+  document.body.classList.toggle('is-depleted', depleted);
+
+  const percent = latest?.session?.percent ?? 0;
+  const filled = depleted ? resetProgress(latest?.session?.resetsAt) : percent;
+
+  notchBar.style.setProperty(
+    '--c',
+    depleted ? 'var(--depleted)' : `var(--${severity(percent)})`
+  );
+  notchFill.style.setProperty('--empty', `${100 - filled}%`);
+}
+
 function render() {
+  if (notchActive()) return paintNotch();
+
   const blocked = isBlocked();
 
   panel.classList.toggle('is-offline', Boolean(failure) && !blocked);
@@ -227,6 +296,16 @@ function render() {
 let lastReportedHeight = 0;
 
 function reportHeight() {
+  // The hairline's height is fixed by the main process, so measuring it here
+  // would only report a number back at whoever already decided it. Forgetting the
+  // last measurement is what makes leaving notch mode send a fresh one: the main
+  // process drops its copy on every settings change, and a height that merely
+  // matched the stale value here would be skipped and never replace it.
+  if (notchActive()) {
+    lastReportedHeight = 0;
+    return;
+  }
+
   requestAnimationFrame(() => {
     const height = Math.round(panel.getBoundingClientRect().height);
     if (!height || height === lastReportedHeight) return;
@@ -239,8 +318,12 @@ function reportHeight() {
 
 function applySettings(next) {
   settings = next || {};
+  document.body.classList.toggle('notch', notchActive());
   panel.classList.toggle('compact', Boolean(settings.compact));
-  panel.style.setProperty('--panel-opacity', String(settings.opacity ?? 0.96));
+
+  const opacity = String(settings.opacity ?? 0.96);
+  panel.style.setProperty('--panel-opacity', opacity);
+  notchBar.style.setProperty('--panel-opacity', opacity);
   panel.title = settings.compact ? 'Right-click for options' : '';
   render();
   reportHeight();
@@ -289,6 +372,13 @@ api.onSettings(applySettings);
 
 // Countdowns move every second; "3 min ago" and the throttle wait keep up too.
 setInterval(() => {
+  if (notchActive()) {
+    // Nothing in notch mode ticks except a depleted meter, which is a clock and
+    // has to be redrawn to advance. A usage meter only moves on a poll.
+    if (isDepleted()) paintNotch();
+    return;
+  }
+
   paintCountdowns();
   if (!stripEl.hidden) paintStrip();
   if (!noticeEl.hidden) {
@@ -300,7 +390,13 @@ setInterval(() => {
 }, 1000);
 
 (async () => {
-  applySettings(await api.getSettings());
+  // Both before the first paint, since the layout depends on the pair of them.
+  // hasNotch starting false is the safe way round: anything rendering early gets
+  // the full bar, never a hairline stranded in a full-sized window.
+  const [info, stored] = await Promise.all([api.appInfo(), api.getSettings()]);
+  hasNotch = Boolean(info.hasNotch);
+
+  applySettings(stored);
 
   const state = await api.current();
   if (state?.data) latest = state.data;
