@@ -20,6 +20,9 @@
  * own menu, and the tray.
  */
 
+const { execFile } = require('child_process');
+const path = require('path');
+
 const { app, Notification, shell } = require('electron');
 
 const store = require('./store');
@@ -38,6 +41,24 @@ let broadcast = () => {};
 let timer = null;
 let announcedVersion = null; // the version already put on screen, so it is said once
 
+/*
+ * Whether this copy can replace itself at all, which on macOS is not a given.
+ *
+ * Squirrel.Mac — the thing electron-updater hands the download to — will only
+ * swap in a build whose code signature satisfies the running app's designated
+ * requirement. An ad-hoc signature has no identity to match on: its requirement
+ * is the bundle's own cdhash, which every rebuild changes. So an ad-hoc copy can
+ * be told a new version exists and can be sent to fetch it, but can never install
+ * it, whatever the download says.
+ *
+ * Worth knowing *before* fetching rather than after. electron-updater asks for a
+ * .zip on macOS and the release ships .dmg, so left alone this fails with "ZIP
+ * file not provided" — an accurate sentence about the wrong problem, arrived at
+ * after the download has already been set going. Adding the .zip would only move
+ * the failure later, to a signature mismatch, having spent 120MB to get there.
+ */
+let canSelfInstall = process.platform !== 'darwin';
+
 /**
  * status is the whole story, in one word:
  *   unavailable — this build cannot update itself (running from source, unsigned)
@@ -48,6 +69,7 @@ let announcedVersion = null; // the version already put on screen, so it is said
  *   downloading — fetching it now; percent is meaningful
  *   ready       — staged on disk, applies on the next restart
  *   unpublished — the repository has no releases in it to compare against
+ *   manual      — there is a newer one, and this build cannot install it itself
  *   error       — message says what went wrong, in words
  */
 const state = {
@@ -59,6 +81,29 @@ const state = {
   checkedAt: null,
   releaseUrl: null,
 };
+
+/**
+ * Asks codesign what identity this bundle carries, and settles canSelfInstall.
+ *
+ * `codesign -dv` writes to stderr, and prints "Signature=adhoc" for an ad-hoc
+ * bundle and a "TeamIdentifier=" line for a real one. Anything unexpected — no
+ * codesign, a bundle it will not read, a timeout — is treated as unsigned, since
+ * being wrong that way costs a link to the release page and being wrong the other
+ * way costs a download that cannot be installed.
+ */
+function detectSelfInstall(done) {
+  if (process.platform !== 'darwin') return done();
+
+  // .../Claude Usage.app/Contents/MacOS/Claude Usage -> .../Claude Usage.app
+  const bundle = path.resolve(path.dirname(app.getPath('exe')), '..', '..');
+
+  execFile('codesign', ['-dv', '--verbose=2', bundle], { timeout: 5000 }, (error, stdout, stderr) => {
+    const text = `${stdout || ''}${stderr || ''}`;
+    const adhoc = /Signature\s*=\s*adhoc/i.test(text) || /TeamIdentifier\s*=\s*not set/i.test(text);
+    canSelfInstall = !error && !adhoc && /TeamIdentifier\s*=/i.test(text);
+    done();
+  });
+}
 
 function publish(patch) {
   Object.assign(state, patch);
@@ -115,6 +160,13 @@ function classify(error) {
   if (/code signature|not signed/i.test(text)) {
     return { status: 'unavailable', message: 'This build is not signed, so it cannot replace itself.' };
   }
+  // Belt and braces for the macOS path: if canSelfInstall ever reads the signature
+  // wrong and a download starts anyway, electron-updater stops at the missing .zip.
+  // That is the same permanent condition as an unsigned build, not a fault.
+  if (/ZIP file not provided|ERR_UPDATER_ZIP_FILE_NOT_FOUND/i.test(text)) {
+    canSelfInstall = false;
+    return { status: 'manual', message: 'This build is not signed, so it cannot replace itself.' };
+  }
 
   return { status: 'error', message: friendly(error) };
 }
@@ -126,24 +178,31 @@ function classify(error) {
  * on, and a notification per check for the same release is how a helpful app
  * becomes one you mute.
  *
- * There are two of these because there are two ways to arrive here. Normally the
- * release has already been fetched and the only thing left is the restart. With
- * automatic downloading switched off, nothing has been fetched, and offering a
- * restart that cannot happen yet would be a lie — so it offers the download.
+ * There are three of these because there are three ways to arrive here. Normally
+ * the release has already been fetched and the only thing left is the restart.
+ * With automatic downloading switched off, nothing has been fetched, and offering
+ * a restart that cannot happen yet would be a lie — so it offers the download.
+ * And a build that cannot install its own updates must not offer either; all it
+ * can truthfully do is point at the page.
  */
-function announce(version, staged) {
+function announce(version, mode) {
   if (!version || announcedVersion === version || !Notification.isSupported()) return;
   announcedVersion = version;
 
-  const notification = new Notification({
-    title: staged ? `Claude Usage ${version} is ready` : `Claude Usage ${version} is available`,
-    body: staged
-      ? 'Restart the widget to finish updating. Click here to do it now.'
-      : 'Click here to download it. It installs the next time you restart.',
-    silent: true, // a version number is not worth a sound
-  });
+  const COPY = {
+    ready: [`Claude Usage ${version} is ready`, 'Restart the widget to finish updating. Click here to do it now.'],
+    available: [`Claude Usage ${version} is available`, 'Click here to download it. It installs the next time you restart.'],
+    manual: [`Claude Usage ${version} is available`, 'This build cannot update itself. Click here to open the download page.'],
+  };
+  const [title, body] = COPY[mode] || COPY.available;
 
-  notification.on('click', () => (staged ? install() : download()));
+  const notification = new Notification({ title, body, silent: true }); // a version number is not worth a sound
+
+  notification.on('click', () => {
+    if (mode === 'ready') return install();
+    if (mode === 'manual') return openReleaseNotes();
+    return download();
+  });
   notification.show();
 }
 
@@ -158,7 +217,23 @@ function wire() {
 
   autoUpdater.on('update-available', (info) => {
     const version = info && info.version ? info.version : null;
-    const fetching = autoUpdater.autoDownload;
+    const fetching = autoUpdater.autoDownload && canSelfInstall;
+
+    // A build that cannot install what it fetches is told here, before a byte of
+    // it moves. The news is the same — there is a newer version — but the only
+    // honest thing to offer is the page it can be downloaded from.
+    if (!canSelfInstall) {
+      publish({
+        status: 'manual',
+        version,
+        releaseUrl: releaseUrl(version),
+        percent: 0,
+        message: 'This build is not signed, so it cannot replace itself.',
+        checkedAt: Date.now(),
+      });
+      announce(version, 'manual');
+      return;
+    }
 
     // autoDownload decides which of these two is true the moment this fires, so
     // the status has to follow the setting rather than assume either one.
@@ -173,7 +248,7 @@ function wire() {
 
     // Fetching it means update-downloaded is moments away and will say so itself;
     // saying it twice for one release is the thing announce() exists to prevent.
-    if (!fetching) announce(version, false);
+    if (!fetching) announce(version, 'available');
   });
 
   autoUpdater.on('download-progress', (progress) => {
@@ -193,7 +268,7 @@ function wire() {
     // Cleared first: a download that was announced as merely available has now
     // become a restart, and that is a different thing worth saying once more.
     announcedVersion = null;
-    announce(version, true);
+    announce(version, 'ready');
   });
 
   autoUpdater.on('error', (error) => {
@@ -209,7 +284,7 @@ function isReady() {
 
 /** True while there is something the menus could usefully offer to do. */
 function hasNews() {
-  return state.status === 'ready' || state.status === 'available';
+  return state.status === 'ready' || state.status === 'available' || state.status === 'manual';
 }
 
 async function check(manual = false) {
@@ -236,6 +311,11 @@ async function check(manual = false) {
 
 /** Fetches a release that was found while automatic downloading was switched off. */
 async function download() {
+  // The one thing this build can do about a new version is show you where it is.
+  if (state.status === 'manual' || !canSelfInstall) {
+    openReleaseNotes();
+    return current();
+  }
   if (!autoUpdater || state.status !== 'available') return current();
 
   publish({ status: 'downloading', percent: 0, message: null });
@@ -267,9 +347,15 @@ function openReleaseNotes() {
   if (state.releaseUrl) shell.openExternal(state.releaseUrl);
 }
 
-/** Re-reads the one setting that changes how this behaves while it is running. */
+/**
+ * Re-reads the one setting that changes how this behaves while it is running.
+ *
+ * canSelfInstall overrides it rather than the setting being hidden: the switch is
+ * about bandwidth, and there is no version of "download it quietly" worth doing
+ * when the download can only ever be thrown away.
+ */
 function applySettings() {
-  if (autoUpdater) autoUpdater.autoDownload = store.get('autoUpdate') !== false;
+  if (autoUpdater) autoUpdater.autoDownload = canSelfInstall && store.get('autoUpdate') !== false;
 }
 
 function init(onChange) {
@@ -294,17 +380,33 @@ function init(onChange) {
   }
 
   autoUpdater.autoInstallOnAppQuit = true;
-  applySettings();
   wire();
 
-  timer = setTimeout(function loop() {
-    check(false);
-    timer = setTimeout(loop, RECHECK_INTERVAL);
-  }, FIRST_CHECK_DELAY);
+  /*
+   * Once now and once after the check, and the first one is not redundant.
+   * autoDownload defaults to true in the library and is acted on inside
+   * checkForUpdates, before any handler here is reached — so a manual check from
+   * the settings window during the moment codesign takes to answer would fetch a
+   * release on the strength of a default nobody chose. canSelfInstall starts false
+   * on macOS precisely so this first call is the safe way round.
+   */
+  applySettings();
 
-  // Nothing else holds this handle, and a timer outliving the app keeps the
-  // process alive on the way out.
-  if (timer.unref) timer.unref();
+  // Settled before the first check, since the answer decides whether a found
+  // release is fetched or merely pointed at. It costs one codesign call, and the
+  // 30 seconds before that first check is more than it needs.
+  detectSelfInstall(() => {
+    applySettings();
+
+    timer = setTimeout(function loop() {
+      check(false);
+      timer = setTimeout(loop, RECHECK_INTERVAL);
+    }, FIRST_CHECK_DELAY);
+
+    // Nothing else holds this handle, and a timer outliving the app keeps the
+    // process alive on the way out.
+    if (timer.unref) timer.unref();
+  });
 }
 
 module.exports = {

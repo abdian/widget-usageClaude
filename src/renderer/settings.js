@@ -188,6 +188,7 @@ const UPDATE_COPY = {
   downloading: (u) => [`Downloading version ${u.version}…`, null],
   ready: (u) => [`Version ${u.version} is ready`, 'Restart and install'],
   unpublished: (u) => [u.message || 'No release has been published yet', 'Check again'],
+  manual: (u) => [`Version ${u.version} is available`, 'Get it from GitHub'],
   error: (u) => [u.message || 'The check did not finish', 'Try again'],
   unavailable: (u) => [u.message || 'This build cannot update itself', null],
 };
@@ -205,7 +206,7 @@ function paintUpdate(next) {
   if (status === 'downloading') {
     updateBadge.hidden = false;
     updateBadge.textContent = `${update.percent || 0}%`;
-  } else if ((status === 'available' || status === 'ready') && update.version) {
+  } else if ((status === 'available' || status === 'ready' || status === 'manual') && update.version) {
     updateBadge.hidden = false;
     updateBadge.textContent = 'new';
   } else {
@@ -223,6 +224,12 @@ function paintUpdate(next) {
 }
 
 updateGo.addEventListener('click', async () => {
+  // Nothing to fetch here — this build cannot install what it would fetch, so the
+  // button does the only useful thing and opens the page.
+  if (update.status === 'manual') {
+    api.openReleaseNotes();
+    return;
+  }
   if (update.status === 'available') {
     paintUpdate(await api.downloadUpdate());
     return;

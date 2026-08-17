@@ -1,6 +1,6 @@
 {
   "name": "claude-usage-widget",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Floating always-on-top widget showing Claude Code subscription usage (5-hour and weekly)",
   "main": "src/main/main.js",
   "author": "Ali Abdian",

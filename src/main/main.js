@@ -926,6 +926,15 @@ function updateMenuItems() {
     ];
   }
 
+  // Same news, but this copy cannot act on it — so the label promises a page
+  // rather than an install it has no way to perform.
+  if (update.status === 'manual') {
+    return [
+      { label: `Version ${update.version} is available — open downloads…`, click: () => updater.openReleaseNotes() },
+      { type: 'separator' },
+    ];
+  }
+
   return [];
 }
 

@@ -143,9 +143,14 @@ What happens then is split in two on purpose:
   applied on the next restart, so the widget never disappears out from under you.
 
 When one is ready you get a desktop notification, a line at the top of the right-click
-and tray menus — *Restart and update to 1.2.0* — and a card in **About** with a
+and tray menus — *Restart and update to 1.2.1* — and a card in **About** with a
 **Restart and install** button. Clicking any of them restarts straight into the new
 version. Ignoring all of them is fine too: it installs on the next ordinary quit.
+
+None of that applies to a build that cannot replace itself, which on macOS is every
+build here — see [macOS](#macos). Those check, say plainly that a newer version exists,
+and offer the download page. What they will not do is fetch 120MB in the background to
+throw it away.
 
 ### Publishing one
 
@@ -248,10 +253,16 @@ Then open it normally. This is needed once per download, not once per launch.
 > the SHA-256 of each file to check a download against. `npm run dist:mac` builds your
 > own copy and needs none of this.
 
-Unsigned also means **no automatic updates on macOS**: replacing an app in place needs a
-Developer ID signature, so About reports *this build is not signed, so it cannot replace
-itself* rather than pretending to check. Updating a Mac copy means downloading the next
-`.dmg` from Releases. Windows updates itself normally.
+Unsigned also means **no automatic updates on macOS**. Replacing an app in place is
+Squirrel's job, and Squirrel will only swap in a build whose signature satisfies the
+running app's — an ad-hoc signature has no identity to match on, only the bundle's own
+hash, which every rebuild changes.
+
+So the app checks its own signature at startup and behaves accordingly. On a Mac copy it
+still tells you a new version is out, in the menus and in **About**, and the button says
+*Get it from GitHub* rather than pretending it can install anything. Windows updates
+itself normally, and if this project ever gets a Developer ID the same check turns
+automatic updates back on by itself.
 
 ## License
 

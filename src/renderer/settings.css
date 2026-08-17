@@ -688,7 +688,8 @@ body {
 }
 
 .update[data-state='available'],
-.update[data-state='ready'] {
+.update[data-state='ready'],
+.update[data-state='manual'] {
   --c: var(--calm);
   border-color: color-mix(in srgb, var(--calm) 32%, transparent);
 }
@@ -780,7 +781,8 @@ body {
 
 /* Filled, but only in the two states where there is actually something to do. */
 .update[data-state='available'] .update-go,
-.update[data-state='ready'] .update-go {
+.update[data-state='ready'] .update-go,
+.update[data-state='manual'] .update-go {
   font-weight: 600;
   color: var(--ink);
   background: var(--calm);
@@ -788,7 +790,8 @@ body {
 }
 
 .update[data-state='available'] .update-go:hover,
-.update[data-state='ready'] .update-go:hover {
+.update[data-state='ready'] .update-go:hover,
+.update[data-state='manual'] .update-go:hover {
   background: color-mix(in srgb, #fff 12%, var(--calm));
 }
 
