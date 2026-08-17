@@ -16,10 +16,17 @@ contextBridge.exposeInMainWorld('claudeUsage', {
   current: () => ipcRenderer.invoke('usage:current'),
   appInfo: () => ipcRenderer.invoke('app:info'),
 
+  updateState: () => ipcRenderer.invoke('update:state'),
+  checkUpdate: () => ipcRenderer.invoke('update:check'),
+  downloadUpdate: () => ipcRenderer.invoke('update:download'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  openReleaseNotes: () => ipcRenderer.send('update:release-notes'),
+
   onData: listen('usage:data'),
   onError: listen('usage:error'),
   onLoading: listen('usage:loading'),
   onSettings: listen('settings:changed'),
+  onUpdate: listen('update:changed'),
 
   openSettings: () => ipcRenderer.send('window:open-settings'),
   closeSettings: () => ipcRenderer.send('window:close-settings'),

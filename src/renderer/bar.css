@@ -93,7 +93,12 @@ body {
 
 .row {
   display: grid;
-  grid-template-columns: 54px 1fr 30px 52px;
+
+  /* The meter column is handed a device-pixel-snapped width by JS (see the meter
+     block below); the few spare pixels that leaves go into the gaps rather than
+     trailing off the end of the meter. */
+  grid-template-columns: 54px var(--meter-w, 1fr) 30px 52px;
+  justify-content: space-between;
   align-items: center;
   gap: 8px;
   height: 18px;
@@ -145,23 +150,39 @@ body {
  * Twenty ticks (one per 5%) read far better at 6px tall than a smooth bar, and
  * the 85–100% zone is tinted on the *empty* track so remaining headroom is
  * visible before you are in trouble — the way a tachometer shows its redline.
+ *
+ * The tick period is a length, not a percentage, and JS keeps it a whole number
+ * of device pixels wide (see syncTickGrid in bar.js). Expressed as 5% it came
+ * out at 5.2px in compact, and the rasteriser had to round each tick's two edges
+ * on its own — so some ticks landed on five device pixels, some on six, and some
+ * straddled a boundary and came out half-lit. The percentages survive only as
+ * the fallback for the frame before the first measurement.
  */
 .meter {
   position: relative;
   height: 6px;
   border-radius: 1px;
   background:
-    repeating-linear-gradient(90deg, var(--track) 0 3.6%, transparent 3.6% 5%),
+    repeating-linear-gradient(
+      90deg,
+      var(--track) 0 var(--tick-lit, 3.6%),
+      transparent var(--tick-lit, 3.6%) var(--tick, 5%)
+    ),
     linear-gradient(90deg, transparent 0 85%, var(--redline) 85% 100%);
 }
 
 .meter .fill {
   position: absolute;
   inset: 0;
-  background: repeating-linear-gradient(90deg, var(--c) 0 3.6%, transparent 3.6% 5%);
+  background: repeating-linear-gradient(
+    90deg,
+    var(--c) 0 var(--tick-lit, 3.6%),
+    transparent var(--tick-lit, 3.6%) var(--tick, 5%)
+  );
 
   /* Clipping a full-width layer (rather than resizing it) keeps the lit ticks
-     locked to the same grid as the track behind them. */
+     locked to the same grid as the track behind them, and the clip lands on a
+     tick boundary — a tick is either lit or not, never sliced down the middle. */
   clip-path: inset(0 var(--empty, 100%) 0 0);
   transition: clip-path 620ms var(--ease), background 240ms var(--ease);
 }
@@ -379,7 +400,7 @@ body {
 
 .panel.compact .row {
   height: 13px;
-  grid-template-columns: 30px 1fr 27px 42px;
+  grid-template-columns: 30px var(--meter-w, 1fr) 27px 42px;
   gap: 5px;
 }
 

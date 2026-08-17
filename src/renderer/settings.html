@@ -131,8 +131,8 @@
 
         <div class="field field-toggle">
           <div class="field-text">
-            <span class="field-label">Allow over the taskbar</span>
-            <span class="field-help">Bottom positions sit on the taskbar instead of above it</span>
+            <span class="field-label" id="overEdgeLabel">Allow over the taskbar</span>
+            <span class="field-help" id="overEdgeHelp">Bottom positions sit on the taskbar instead of above it</span>
           </div>
           <button class="switch" id="overTaskbar" type="button" role="switch" aria-checked="false"><span></span></button>
         </div>
@@ -201,6 +201,37 @@
           </svg>
           View on GitHub
         </button>
+
+        <div class="rule"></div>
+
+        <h3 class="sub-title">Updates</h3>
+
+        <!--
+          data-state carries the whole status, so the card is styled from one
+          attribute rather than a handful of toggled classes.
+        -->
+        <div class="update" id="update" data-state="idle">
+          <div class="update-head">
+            <span class="update-dot" aria-hidden="true"></span>
+            <span class="update-state" id="updateState">Checking shortly</span>
+            <span class="update-badge" id="updateBadge" hidden></span>
+          </div>
+
+          <div class="update-track" id="updateTrack" hidden><span id="updateFill"></span></div>
+
+          <div class="update-actions">
+            <button class="btn update-go" id="updateGo" type="button">Check for updates</button>
+            <button class="btn update-notes" id="updateNotes" type="button" hidden>What's new</button>
+          </div>
+        </div>
+
+        <div class="field field-toggle">
+          <div class="field-text">
+            <span class="field-label">Download updates automatically</span>
+            <span class="field-help">Fetched quietly in the background. Nothing changes until you restart.</span>
+          </div>
+          <button class="switch" id="autoUpdate" type="button" role="switch" aria-checked="true"><span></span></button>
+        </div>
 
         <div class="rule"></div>
 

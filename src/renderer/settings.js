@@ -61,6 +61,7 @@ const switches = {
   clickThrough: bindSwitch('clickThrough', 'clickThrough'),
   startup: bindSwitch('startup', 'startAtLogin'),
   refreshTime: bindSwitch('refreshTime', 'showRefreshTime'),
+  autoUpdate: bindSwitch('autoUpdate', 'autoUpdate'),
 };
 
 /* -------------------------------------------------------- position picker */
@@ -110,6 +111,16 @@ opacityEl.addEventListener('change', async () => {
 });
 
 document.getElementById('closeBtn').addEventListener('click', () => api.closeSettings());
+
+/*
+ * The one keyboard way out. This window draws its own titlebar, so there is no
+ * system close button behind it — and on a Mac the app has no menu bar either,
+ * being a menu bar item itself, so Cmd-W has nothing to close it with. Without
+ * this the × in the corner is the only exit there is.
+ */
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') api.closeSettings();
+});
 document.getElementById('refreshNow').addEventListener('click', () => api.refresh());
 document.getElementById('openFolder').addEventListener('click', () => api.openCredentialsFolder());
 
@@ -134,6 +145,7 @@ function paintSettings(next) {
   switches.startup.setAttribute('aria-checked', String(Boolean(settings.startAtLogin)));
   switches.overTaskbar.setAttribute('aria-checked', String(Boolean(settings.overTaskbar)));
   switches.refreshTime.setAttribute('aria-checked', String(settings.showRefreshTime !== false));
+  switches.autoUpdate.setAttribute('aria-checked', String(settings.autoUpdate !== false));
 
   paintAnchor(settings.anchor || 'bottom-right');
   // 300 matches the store's default; 60 is not one of the options, so falling
@@ -144,6 +156,85 @@ function paintSettings(next) {
   opacityEl.value = String(opacityPercent);
   opacityValue.textContent = `${opacityPercent}%`;
 }
+
+/* ----------------------------------------------------------------- updates */
+
+const updateCard = document.getElementById('update');
+const updateStateEl = document.getElementById('updateState');
+const updateBadge = document.getElementById('updateBadge');
+const updateTrack = document.getElementById('updateTrack');
+const updateFill = document.getElementById('updateFill');
+const updateGo = document.getElementById('updateGo');
+const updateNotes = document.getElementById('updateNotes');
+
+let update = { status: 'idle' };
+
+/*
+ * What the card says, and what its button offers, for each state. Kept as one
+ * table because the two have to agree: a headline announcing a download with a
+ * button offering to check again is how a person ends up not trusting either.
+ *
+ * A null action means there is nothing useful to press — the button stays put and
+ * greys out rather than vanishing, so the card does not change height while it
+ * works.
+ */
+const UPDATE_COPY = {
+  idle: () => ['Not checked yet', 'Check for updates'],
+  checking: () => ['Looking for a newer version…', null],
+  none: () => ['This is the newest version', 'Check again'],
+  available: (u) => [`Version ${u.version} is available`, 'Download it'],
+  downloading: (u) => [`Downloading version ${u.version}…`, null],
+  ready: (u) => [`Version ${u.version} is ready`, 'Restart and install'],
+  unpublished: (u) => [u.message || 'No release has been published yet', 'Check again'],
+  error: (u) => [u.message || 'The check did not finish', 'Try again'],
+  unavailable: (u) => [u.message || 'This build cannot update itself', null],
+};
+
+function paintUpdate(next) {
+  update = next || {};
+  const status = UPDATE_COPY[update.status] ? update.status : 'idle';
+  const [headline, action] = UPDATE_COPY[status](update);
+
+  updateCard.dataset.state = status;
+  updateStateEl.textContent = headline;
+
+  // The badge carries the one number worth watching, and nothing when there is
+  // no number: a percentage mid-download, the version otherwise.
+  if (status === 'downloading') {
+    updateBadge.hidden = false;
+    updateBadge.textContent = `${update.percent || 0}%`;
+  } else if ((status === 'available' || status === 'ready') && update.version) {
+    updateBadge.hidden = false;
+    updateBadge.textContent = 'new';
+  } else {
+    updateBadge.hidden = true;
+  }
+
+  updateTrack.hidden = status !== 'downloading';
+  updateFill.style.setProperty('--empty', `${100 - (update.percent || 0)}%`);
+
+  updateGo.hidden = !action && status === 'unavailable';
+  updateGo.disabled = !action;
+  if (action) updateGo.textContent = action;
+
+  updateNotes.hidden = !update.releaseUrl || status === 'none';
+}
+
+updateGo.addEventListener('click', async () => {
+  if (update.status === 'available') {
+    paintUpdate(await api.downloadUpdate());
+    return;
+  }
+  if (update.status === 'ready') {
+    api.installUpdate();
+    return;
+  }
+  paintUpdate(await api.checkUpdate());
+});
+
+updateNotes.addEventListener('click', () => api.openReleaseNotes());
+
+api.onUpdate(paintUpdate);
 
 /* ----------------------------------------------------------------- readout */
 
@@ -267,6 +358,7 @@ api.onSettings(paintSettings);
 
 (async () => {
   paintSettings(await api.getSettings());
+  paintUpdate(await api.updateState());
 
   const info = await api.appInfo();
   document.getElementById('credPath').textContent = info.credentialsPath;
@@ -289,8 +381,13 @@ api.onSettings(paintSettings);
     repoLink.hidden = true;
   }
 
+  // The page is written for Windows, where most of this runs. The few labels that
+  // name a piece of the desktop have to name the right one.
   if (info.platform === 'darwin') {
     document.getElementById('loginLabel').textContent = 'Start when the Mac starts';
+    document.getElementById('overEdgeLabel').textContent = 'Allow over the Dock';
+    document.getElementById('overEdgeHelp').textContent =
+      'Edge positions sit over the Dock and menu bar instead of beside them';
   }
 
   const state = await api.current();

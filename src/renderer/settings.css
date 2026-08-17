@@ -660,6 +660,148 @@ body {
   text-align: center;
 }
 
+/* ----------------------------------------------------------------- updates */
+
+/*
+ * The same rule the meters follow, applied to a different kind of news: the card
+ * is the colour of ordinary text while there is nothing to report, and only earns
+ * the clay accent when a version is genuinely sitting there waiting. An app that
+ * highlights itself for saying "you are up to date" has spent the one signal it
+ * had, and you stop reading it.
+ *
+ * One custom property does the whole ramp, so the dot, the badge, the progress
+ * and the button cannot drift out of agreement about what state this is.
+ */
+.update {
+  --c: var(--text-faint);
+  padding: 12px 13px;
+  margin-bottom: 16px;
+  background: var(--ink-sunken);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  transition: border-color 200ms var(--ease);
+}
+
+.update[data-state='checking'],
+.update[data-state='downloading'] {
+  --c: var(--text-dim);
+}
+
+.update[data-state='available'],
+.update[data-state='ready'] {
+  --c: var(--calm);
+  border-color: color-mix(in srgb, var(--calm) 32%, transparent);
+}
+
+.update[data-state='error'] {
+  --c: var(--alarm);
+}
+
+.update-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.update-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  background: var(--c);
+  border-radius: 50%;
+  transition: background 200ms var(--ease);
+}
+
+/* Work in progress reads as work in progress without a spinner to draw. */
+.update[data-state='checking'] .update-dot,
+.update[data-state='downloading'] .update-dot {
+  animation: update-pulse 1.5s var(--ease) infinite;
+}
+
+@keyframes update-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.22;
+  }
+}
+
+.update-state {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--ui);
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.update-badge {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c);
+}
+
+/* Same weave as the meters, so a download reads as the same kind of object. */
+.update-track {
+  position: relative;
+  height: 5px;
+  margin-top: 12px;
+  background: repeating-linear-gradient(90deg, var(--track) 0 3.6%, transparent 3.6% 5%);
+}
+
+.update-track span {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, var(--c) 0 3.6%, transparent 3.6% 5%);
+  clip-path: inset(0 var(--empty, 100%) 0 0);
+  transition: clip-path 320ms var(--ease);
+}
+
+.update-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.update-actions .btn {
+  flex: 1;
+}
+
+.update-actions .btn[hidden] {
+  display: none;
+}
+
+/* Filled, but only in the two states where there is actually something to do. */
+.update[data-state='available'] .update-go,
+.update[data-state='ready'] .update-go {
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--calm);
+  border-color: var(--calm);
+}
+
+.update[data-state='available'] .update-go:hover,
+.update[data-state='ready'] .update-go:hover {
+  background: color-mix(in srgb, #fff 12%, var(--calm));
+}
+
+.btn[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn[disabled]:hover {
+  background: var(--ink-raised);
+  border-color: var(--line-strong);
+}
+
 /* -------------------------------------------------------------------- misc */
 
 .note {

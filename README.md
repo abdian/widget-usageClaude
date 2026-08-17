@@ -19,9 +19,13 @@ in a small bar you park wherever you like and stop thinking about.
 
 Download the installer from [Releases](../../releases) and run it.
 
-Or build it yourself:
+Or build it yourself. Both commands run **inside the project folder**, so clone it
+and `cd` in first — run them anywhere else and npm looks for a `package.json` that
+is not there:
 
 ```bash
+git clone https://github.com/abdian/widget-usageClaude.git
+cd widget-usageClaude
 npm install
 npm run dist       # Windows .exe -> release/
 ```
@@ -66,7 +70,7 @@ icon.
 | **Meters** | Which limits to draw, and how often to check                         |
 | **Look**   | Opacity, compact size, last refresh time                             |
 | **Place**  | Nine screen anchors, over-the-taskbar, lock, on top, fullscreen, startup |
-| **About**  | Version, credentials location, the repo                              |
+| **About**  | Version, updates, credentials location, the repo                     |
 
 Checking defaults to every 5 minutes and cannot be set below 2 — usage moves slowly,
 the countdown ticks locally between polls anyway, and checking every minute sits close
@@ -77,6 +81,46 @@ lets the bottom positions sit *on* the taskbar rather than above it, and pairing
 with **Start when Windows starts** brings the bar back in the same place every boot.
 
 Compact mode shrinks the bar and moves every control into the right-click menu.
+
+## Updates
+
+The widget checks for a new release shortly after it starts and every six hours it
+stays running. A tray widget is the kind of app nobody remembers to go and update, so
+it is worth it doing that itself.
+
+What happens then is split in two on purpose:
+
+- **Downloading** is automatic, because it costs you nothing — the new version is
+  fetched in the background and written to disk, and nothing about the running app
+  changes. Turn it off with **Download updates automatically** in About, and the app
+  will find releases but wait to be told to fetch them.
+- **Installing** is never automatic while you are using the app. The staged version is
+  applied on the next restart, so the widget never disappears out from under you.
+
+When one is ready you get a Windows notification, a line at the top of the right-click
+and tray menus — *Restart and update to 1.2.0* — and a card in **About** with a
+**Restart and install** button. Clicking any of them restarts straight into the new
+version. Ignoring all of them is fine too: it installs on the next ordinary quit.
+
+### Publishing one
+
+Auto-update reads GitHub Releases for this repo. To cut one:
+
+```bash
+npm version patch          # or minor / major — installed copies compare against this
+export GH_TOKEN=...        # a token with write access to the repo
+npm run release            # builds the .exe and uploads it with latest.yml
+```
+
+`latest.yml` is the file installed copies actually read, and `npm run release` uploads
+it alongside the installer. Publishing the `.exe` by hand without it leaves every
+existing install reporting *No release has been published yet*.
+
+> [!NOTE]
+> Updating in place needs the app to have been **installed** from the NSIS installer.
+> A copy run straight out of `release/win-unpacked` has nothing to replace, and says so
+> rather than pretending to check. On macOS, replacing an app in place requires a
+> Developer ID signature — the ad-hoc signed `.dmg` below cannot update itself.
 
 ## Fullscreen video
 
@@ -113,14 +157,21 @@ number wearing the wrong label.
 ## macOS
 
 The code is cross-platform — credentials come from the login keychain, and the tray
-becomes a menu bar item showing the live numbers next to the clock.
+becomes a menu bar item showing the live numbers next to the clock. There is no Dock
+icon, since the app lives in the menu bar.
+
+A `.dmg` has to be built on a Mac, from a clone of this repo — the commands only work
+inside the project folder, so `cd` there first:
 
 ```bash
-npm run dist:mac   # .dmg -> release/
+git clone https://github.com/abdian/widget-usageClaude.git
+cd widget-usageClaude
+npm install
+npm run dist:mac   # .dmg (arm64 + x64) -> release/
 ```
 
-The catch: a `.dmg` has to be built on a Mac, and distributing it beyond your own
-machine needs an Apple Developer ID for signing.
+The build is ad-hoc signed, which is enough to run it on the Mac that built it.
+Distributing the `.dmg` to anyone else needs an Apple Developer ID.
 
 ## License
 

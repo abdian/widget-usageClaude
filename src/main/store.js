@@ -44,6 +44,13 @@ const DEFAULTS = {
   overTaskbar: false,
 
   showRefreshTime: true,
+
+  /*
+   * Whether a release that has been found is also fetched without being asked.
+   * On by default because the download costs nothing and changes nothing: the new
+   * version sits on disk until you restart. Installing is still yours to trigger.
+   */
+  autoUpdate: true,
 };
 
 /*
@@ -111,6 +118,7 @@ const VALIDATORS = {
   stayAboveFullscreen: bool,
   overTaskbar: bool,
   showRefreshTime: bool,
+  autoUpdate: bool,
 };
 
 function sanitize(patch) {

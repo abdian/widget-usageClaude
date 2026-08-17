@@ -1,6 +1,6 @@
 {
   "name": "claude-usage-widget",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Floating always-on-top widget showing Claude Code subscription usage (5-hour and weekly)",
   "main": "src/main/main.js",
   "author": "Ali Abdian",
@@ -16,9 +16,11 @@
     "poster": "electron scripts/make-poster.js",
     "dist": "npm run icons && electron-builder --win",
     "dist:mac": "npm run icons && electron-builder --mac",
-    "pack": "npm run icons && electron-builder --dir"
+    "pack": "npm run icons && electron-builder --dir",
+    "release": "npm run icons && electron-builder --win --publish always"
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
     "koffi": "^3.1.4"
   },
   "devDependencies": {
@@ -28,11 +30,17 @@
   "build": {
     "appId": "dev.esanj.claude-usage-widget",
     "productName": "Claude Usage",
-    "publish": null,
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "abdian",
+        "repo": "widget-usageClaude"
+      }
+    ],
     "files": [
       "src/**/*",
       "build/icon.*",
-      "node_modules/koffi/**/*"
+      "node_modules/**/*"
     ],
     "asarUnpack": [
       "**/*.node",
@@ -63,10 +71,22 @@
     },
     "mac": {
       "target": [
-        "dmg"
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
       ],
-      "icon": "build/icon.icns",
-      "category": "public.app-category.developer-tools"
+      "icon": "build/icon.png",
+      "category": "public.app-category.developer-tools",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "notarize": false,
+      "extendInfo": {
+        "LSUIElement": 1
+      }
     }
   }
 }
