@@ -12,6 +12,91 @@ body {
   align-content: center;
 }
 
+/* -------------------------------------------------------------- notch mode */
+
+/*
+ * One hairline under the camera housing, sized by the main process to the width
+ * of the notch itself. No label, no percentage, no panel — at three pixels tall
+ * the length and the colour are the entire message.
+ *
+ * Square corners and edge-to-edge fill are the point: it should read as the
+ * notch continuing downward, not as a separate object parked beneath it.
+ */
+.notch-bar {
+  display: none;
+  height: 100vh;
+
+  /*
+   * Pure black rather than the app's warm ink, and opaque whatever the opacity
+   * setting says: this is impersonating the camera housing, and hardware does
+   * not go translucent. The opacity control moves to the meter instead.
+   */
+  background: #000;
+
+  /*
+   * Bottom corners only, at the housing's own radius. The top of this element sits
+   * inside the real notch (see NOTCH_OVERLAP in main.js), so square top corners are
+   * black-on-black and never seen — rounding them would carve a waist into the one
+   * shape the two are supposed to form.
+   */
+  border-radius: 0 0 11px 11px;
+
+  /*
+   * Top padding is NOTCH_OVERLAP + 5, since the first 12 is hidden up inside the
+   * housing and only the rest puts air above the meter. Keep both in step with
+   * main.js. The 8 either side is what lets the meter keep square ends — it stops
+   * clear of the corner arcs rather than being clipped to fit them.
+   */
+  padding: 17px 8px 6px;
+
+  /* Set by JS from the severity ramp, exactly as .row does for the full bar. */
+  --c: var(--calm);
+}
+
+body.notch {
+  display: block; /* the panel's vertical centring has nothing left to centre */
+}
+
+body.notch .notch-bar {
+  display: block;
+}
+
+body.notch .panel {
+  display: none;
+}
+
+/*
+ * Deliberately the bar's own .meter, not a copy of it: the same twenty ticks,
+ * the same 85% redline on the empty track, the same clip-path fill. It only
+ * loses the corner rounding, which at this height would eat the outer ticks.
+ */
+.notch-bar .meter {
+  height: 3px;
+  border-radius: 0; /* square ends, against the rounded shell around it */
+  opacity: var(--panel-opacity, 0.96);
+}
+
+/* A stale reading still answers "how much have I got left", so a failed refresh
+   only dims the line. A sign-in problem is the exception that empties it and
+   turns the track red, because that one needs you to do something. */
+body.notch.is-stale .notch-bar .fill {
+  opacity: 0.4;
+}
+
+/* Depleted, the track loses its redline: that tint marks the last 15% of usage,
+   and usage is no longer what the meter is showing. */
+body.notch.is-depleted .notch-bar .meter {
+  background: repeating-linear-gradient(90deg, var(--track) 0 3.6%, transparent 3.6% 5%);
+}
+
+body.notch.is-blocked .notch-bar .meter {
+  background: color-mix(in srgb, var(--alarm) 40%, transparent);
+}
+
+body.notch.is-blocked .notch-bar .fill {
+  display: none;
+}
+
 /* ------------------------------------------------------------------- panel */
 
 .panel {

@@ -27,6 +27,11 @@
   --warn: #e0a03c;
   --alarm: #e05252;
 
+  /* The 5-hour window is spent. Hotter than --alarm, not softer: alarm is the
+     warning that you are nearly out, this is the state where you already are. It
+     is the one moment the widget is allowed to shout. */
+  --depleted: #ff3b30;
+
   /* Meter */
   --track: rgba(255, 255, 255, 0.09);
   --redline: rgba(224, 82, 82, 0.14);

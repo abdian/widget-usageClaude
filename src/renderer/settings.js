@@ -54,6 +54,7 @@ const checks = {
 
 const switches = {
   compact: bindSwitch('compact', 'compact'),
+  notchMode: bindSwitch('notchMode', 'notchMode'),
   onTop: bindSwitch('onTop', 'alwaysOnTop'),
   aboveFullscreen: bindSwitch('aboveFullscreen', 'stayAboveFullscreen'),
   overTaskbar: bindSwitch('overTaskbar', 'overTaskbar'),
@@ -130,6 +131,7 @@ function paintSettings(next) {
   settings = next || {};
 
   switches.compact.setAttribute('aria-checked', String(Boolean(settings.compact)));
+  switches.notchMode.setAttribute('aria-checked', String(Boolean(settings.notchMode)));
   switches.onTop.setAttribute('aria-checked', String(Boolean(settings.alwaysOnTop)));
   switches.aboveFullscreen.setAttribute(
     'aria-checked',
@@ -389,6 +391,9 @@ api.onSettings(paintSettings);
     document.getElementById('overEdgeHelp').textContent =
       'Edge positions sit over the Dock and menu bar instead of beside them';
   }
+
+  // Offering the switch on a machine with no notch would place the bar nowhere.
+  if (info.hasNotch) document.getElementById('notchField').hidden = false;
 
   const state = await api.current();
   if (state?.data) paintReadout(state.data);

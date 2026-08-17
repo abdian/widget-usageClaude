@@ -8,6 +8,16 @@
     <link rel="stylesheet" href="bar.css" />
   </head>
   <body>
+    <!--
+      Notch mode draws this and nothing else. It sits outside .panel rather than
+      being a stripped-down version of it: the panel is a padded, bordered grid
+      with its own surface and radius, and none of that survives becoming a
+      black shell with a three-pixel meter in it.
+    -->
+    <div class="notch-bar" id="notchBar" aria-hidden="true">
+      <div class="meter"><div class="fill" id="notchFill"></div></div>
+    </div>
+
     <div class="panel" id="panel">
       <div class="status" id="status" title="Connection">
         <span class="dot"></span>

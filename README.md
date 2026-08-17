@@ -68,7 +68,7 @@ icon.
 | Tab        | Holds                                                                |
 | ---------- | -------------------------------------------------------------------- |
 | **Meters** | Which limits to draw, and how often to check                         |
-| **Look**   | Opacity, compact size, last refresh time                             |
+| **Look**   | Opacity, compact size, notch mode, last refresh time                 |
 | **Place**  | Nine screen anchors, over-the-taskbar, lock, on top, fullscreen, startup |
 | **About**  | Version, updates, credentials location, the repo                     |
 
@@ -81,6 +81,41 @@ lets the bottom positions sit *on* the taskbar rather than above it, and pairing
 with **Start when Windows starts** brings the bar back in the same place every boot.
 
 Compact mode shrinks the bar and moves every control into the right-click menu.
+
+## Notch mode
+
+On a MacBook with a camera housing, **Notch mode** — Settings → Look, or the menu bar
+icon — puts the whole widget away and grows the notch instead. The housing reaches a
+little further down the screen, and the 5-hour session runs along the bottom of it:
+the same twenty ticks and the same redline as the full bar, with nothing around them.
+No label, no percentage, no countdown. A failed refresh dims the meter; a sign-in
+problem empties it and turns the track red.
+
+At 100% the meter changes what it measures. A full bar that stays full says nothing
+for the hours it stays that way, so once the allowance is spent it switches to the
+wait for the next one and fills again as the reset comes up, reaching full exactly
+when the session returns. A lighter red marks the change of subject — with nothing
+to read, the colour is the only thing that can — and the redline leaves the track,
+since the last 15% of usage is no longer what is being shown.
+
+The shell starts *inside* the housing rather than flush beneath it. The notch's own
+bottom corners curve inward, so a shape butted against them shows a seam with a square
+ear either side; beginning above where that curve starts fills those corners with the
+same black and leaves one silhouette — straight sides down to a single rounded edge.
+Reaching up into the menu bar strip takes two window options that are easy to miss:
+`enableLargerThanScreen`, because AppKit silently rewrites any frame crossing into it,
+and `roundedCorners: false`, because macOS otherwise rounds all four corners itself and
+the top arcs pinch the join shut.
+
+The width is measured rather than assumed. The menu bar grows to clear the housing —
+33pt against about 25pt without one — and the housing is a single fixed part, so its
+height doubles as the ruler for its width under any display scaling. The switch stays
+hidden on a Mac with no notch, and the bar follows the built-in screen even when an
+external monitor is the primary one.
+
+Anchor, position and compact size have no meaning here and are ignored — the notch is
+the position — and the bar is pinned on top whatever **Keep on top** says, since a
+window below the menu bar cannot draw in it. Turn it back off from the menu bar icon.
 
 ## Updates
 
