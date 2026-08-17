@@ -177,6 +177,94 @@
         font-weight: 600;
         letter-spacing: 0.18em;
       }
+
+      /* ---- notch mode, shown as a detail crop of the middle of the menu bar ---- */
+
+      .showcase {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+      }
+
+      /*
+       * Not a whole display: the notch is 184pt of a 1512pt screen, and drawn to
+       * that ratio it would be too small to show the meter at all. So this is a
+       * close-up of the middle of the menu bar, faded off at both sides to say so.
+       * The middle of a real menu bar is empty, which is why nothing else is in it.
+       */
+      .notch-demo {
+        position: relative;
+        height: 112px;
+
+        /* A desktop, lit well clear of the poster's own ink — the housing is pure
+           black and has to read as a hole in the screen rather than more background. */
+        background:
+          radial-gradient(90% 130% at 50% 8%, rgba(217, 119, 87, 0.3), transparent 60%),
+          linear-gradient(165deg, #7d5442, #402e25 58%, #291e19);
+        -webkit-mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent);
+        mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent);
+      }
+
+      /* The strip the housing interrupts — 33pt tall on a notched Mac, at the same
+         1.5x as the bar above it. */
+      .menubar {
+        height: 50px;
+        background: rgba(0, 0, 0, 0.3);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      }
+
+      /*
+       * The camera housing plus the 14pt the widget adds to it. One silhouette:
+       * pure black, square sides, a single rounded bottom edge — the thing the app
+       * goes to some trouble to be indistinguishable from.
+       */
+      .notch {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: flex-end;
+        width: 276px;
+        height: 71px;
+        padding: 0 12px 9px;
+        background: #000;
+        border-radius: 0 0 16px 16px;
+      }
+
+      .notch .meter {
+        flex: 1;
+        height: 4.5px;
+        border-radius: 0; /* square ends, as in the app — rounding eats the outer ticks */
+      }
+
+      .caption {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        margin-top: -12px;
+        font-family: var(--mono);
+        font-size: 13px;
+        letter-spacing: 0.05em;
+        white-space: nowrap;
+        color: var(--text-faint);
+      }
+
+      .caption b {
+        font-weight: 600;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--calm);
+      }
+
+      .caption::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--line);
+      }
     </style>
   </head>
   <body>
@@ -189,11 +277,13 @@
       </p>
       <div class="facts">
         <span class="fact">Windows &amp; macOS</span>
+        <span class="fact">Notch mode</span>
         <span class="fact">No extra login</span>
         <span class="fact">MIT</span>
       </div>
     </div>
 
+    <div class="showcase">
     <div class="bar">
       <div class="row" style="--c: var(--calm)">
         <span class="label">SESSION</span>
@@ -216,6 +306,15 @@
       <div class="strip">
         <span>Updated just now</span>
         <span class="plan">MAX</span>
+      </div>
+      </div>
+
+      <div class="caption"><b>Notch mode</b><span>the meter, inside the housing</span></div>
+      <div class="notch-demo" style="--c: var(--calm)">
+        <div class="menubar"></div>
+        <div class="notch">
+          <div class="meter"><div class="fill" style="--empty: 80%"></div></div>
+        </div>
       </div>
     </div>
   </body>

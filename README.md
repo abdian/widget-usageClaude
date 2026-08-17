@@ -17,9 +17,15 @@ in a small bar you park wherever you like and stop thinking about.
 
 ## Install
 
-Download the installer from [Releases](../../releases) and run it.
+Both platforms are built on the [Releases page](../../releases):
 
-Or build it yourself. Both commands run **inside the project folder**, so clone it
+| Platform                | Download                            |                                        |
+| ----------------------- | ----------------------------------- | -------------------------------------- |
+| Windows 10 / 11         | `Claude-Usage-Setup-<version>.exe`  | Click-through installer                |
+| macOS — Apple silicon   | `Claude-Usage-<version>-arm64.dmg`  | One extra step first — see [macOS](#macos) |
+| macOS — Intel           | `Claude-Usage-<version>-x64.dmg`    | One extra step first — see [macOS](#macos) |
+
+Or build it yourself. The commands run **inside the project folder**, so clone it
 and `cd` in first — run them anywhere else and npm looks for a `package.json` that
 is not there:
 
@@ -27,8 +33,12 @@ is not there:
 git clone https://github.com/abdian/widget-usageClaude.git
 cd widget-usageClaude
 npm install
-npm run dist       # Windows .exe -> release/
+npm run dist       # Windows .exe          -> release/   (needs Windows)
+npm run dist:mac   # .dmg, arm64 + x64     -> release/   (needs a Mac)
 ```
+
+Each `.dmg` and `.exe` is built on its own platform: electron-builder cannot cross-build
+the NSIS installer from a Mac without Wine, and a `.dmg` cannot be made off a Mac at all.
 
 ## Reading the bar
 
@@ -132,24 +142,42 @@ What happens then is split in two on purpose:
 - **Installing** is never automatic while you are using the app. The staged version is
   applied on the next restart, so the widget never disappears out from under you.
 
-When one is ready you get a Windows notification, a line at the top of the right-click
+When one is ready you get a desktop notification, a line at the top of the right-click
 and tray menus — *Restart and update to 1.2.0* — and a card in **About** with a
 **Restart and install** button. Clicking any of them restarts straight into the new
 version. Ignoring all of them is fine too: it installs on the next ordinary quit.
 
 ### Publishing one
 
-Auto-update reads GitHub Releases for this repo. To cut one:
+Auto-update reads GitHub Releases for this repo. Neither platform can build the other's
+installer, so a release is two runners filling one release:
 
 ```bash
-npm version patch          # or minor / major — installed copies compare against this
-export GH_TOKEN=...        # a token with write access to the repo
-npm run release            # builds the .exe and uploads it with latest.yml
+npm version minor          # or patch / major — installed copies compare against this
+git push --follow-tags     # the v-tag runs .github/workflows/release.yml
 ```
 
-`latest.yml` is the file installed copies actually read, and `npm run release` uploads
-it alongside the installer. Publishing the `.exe` by hand without it leaves every
-existing install reporting *No release has been published yet*.
+Write the notes first, at `.github/release-notes/<version>.md` — [`release.yml`](.github/workflows/release.yml)
+refuses to open a release without them, since notes added after the fact tend never to be
+added at all. From there the tag does the rest: one job creates `v<version>` from that
+file, a Windows runner and a Mac runner build the `.exe` and the two `.dmg`s and publish
+them into it with their update manifests, and a last job appends the SHA-256 of everything
+that actually landed.
+
+Two details are worth knowing before changing any of it:
+
+- The release is **created published, not as a draft.** A draft holds no tag until it is
+  published, and the lookup electron-builder uses to find an existing release resolves the
+  tag through the git ref — so against a draft it reports no such release, every publisher
+  makes its own, and the assets scatter across several releases while every job reports
+  success. A few minutes of an empty release page is the cheaper problem.
+- Building on runners rather than uploading by hand is deliberate on the Mac side: an
+  unsigned `.dmg` asks whoever downloads it to skip a macOS check, and a public build log
+  against a tagged commit is what is offered in exchange.
+
+`latest.yml` and `latest-mac.yml` are the files installed copies actually read — one per
+platform. A release without them is invisible to every existing install on that platform,
+however many installers are attached to it.
 
 > [!NOTE]
 > Updating in place needs the app to have been **installed** from the NSIS installer.
@@ -193,20 +221,37 @@ number wearing the wrong label.
 
 The code is cross-platform — credentials come from the login keychain, and the tray
 becomes a menu bar item showing the live numbers next to the clock. There is no Dock
-icon, since the app lives in the menu bar.
+icon, since the app lives in the menu bar. On a MacBook with a camera housing there is
+also [notch mode](#notch-mode), which is macOS-only for the obvious reason.
 
-A `.dmg` has to be built on a Mac, from a clone of this repo — the commands only work
-inside the project folder, so `cd` there first:
+Take the `-arm64.dmg` on Apple silicon and the `-x64.dmg` on Intel, and drag the app
+into Applications as usual.
+
+### The first launch
+
+The `.dmg` is **ad-hoc signed** — there is no Apple Developer ID behind this project,
+and one costs $99 a year. macOS therefore refuses the first launch of a copy that came
+from the internet, usually with *"Claude Usage is damaged and can't be opened"*. It is
+not damaged; that is the quarantine flag talking, and clearing it is one command:
 
 ```bash
-git clone https://github.com/abdian/widget-usageClaude.git
-cd widget-usageClaude
-npm install
-npm run dist:mac   # .dmg (arm64 + x64) -> release/
+xattr -dr com.apple.quarantine "/Applications/Claude Usage.app"
 ```
 
-The build is ad-hoc signed, which is enough to run it on the Mac that built it.
-Distributing the `.dmg` to anyone else needs an Apple Developer ID.
+Then open it normally. This is needed once per download, not once per launch.
+
+> [!NOTE]
+> That command opts this app out of the check macOS does on unidentified binaries, so it
+> is worth knowing what you are trusting. Every `.dmg` on the Releases page is built by
+> [a GitHub runner](.github/workflows/release.yml) from the tagged commit, not
+> uploaded from anyone's machine — the build log is public, and the release notes carry
+> the SHA-256 of each file to check a download against. `npm run dist:mac` builds your
+> own copy and needs none of this.
+
+Unsigned also means **no automatic updates on macOS**: replacing an app in place needs a
+Developer ID signature, so About reports *this build is not signed, so it cannot replace
+itself* rather than pretending to check. Updating a Mac copy means downloading the next
+`.dmg` from Releases. Windows updates itself normally.
 
 ## License
 

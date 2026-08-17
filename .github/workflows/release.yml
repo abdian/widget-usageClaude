@@ -1,0 +1,150 @@
+# A release, built on the two machines it has to be built on.
+#
+# Neither platform can produce the other's installer — electron-builder needs Wine
+# to cross-build the NSIS one and a .dmg cannot be made off a Mac at all — so a
+# release is two runners filling one release.
+#
+# The Mac side is built here rather than uploaded by hand, and the reason is trust
+# rather than convenience. There is no Apple Developer ID behind this project, so
+# the .dmg is ad-hoc signed and every Mac that downloads one has to be told to
+# clear its quarantine flag: to skip the one check macOS does on a binary from an
+# unidentified developer. That is a fair thing to ask in exchange for a public
+# runner, a tagged commit and a log anyone can read. It is not a fair thing to ask
+# on behalf of a file that came off somebody's laptop, since nothing about that
+# file can be checked at all.
+#
+# Note what the build steps do NOT do: publish. `electron-builder --publish` finds
+# the release to upload into by listing the repository's releases, and that list is
+# a single point of failure. During a GitHub incident on 2026-08-17 it answered an
+# empty array for every repository — this one, cli/cli, microsoft/vscode alike —
+# while GET /releases/tags/<tag> kept answering correctly for all of them. An empty
+# list reads to the publisher as "the release does not exist", so it made a new one,
+# once per artifact, three per platform: 1.2.0 came out as four releases holding
+# between one and four assets each, twice over, with every job reporting success.
+#
+# Uploading by tag has no dependency on that list, which is why the release that
+# finally assembled correctly did so in the middle of the same incident.
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch: # for re-filling a release whose upload went wrong
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure the release exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          notes=".github/release-notes/$version.md"
+          # Notes written after the fact are notes never written.
+          [ -f "$notes" ] || { echo "::error::no release notes at $notes"; exit 1; }
+
+          if gh release view "v$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "release v$version already exists"
+          else
+            gh release create "v$version" --repo "$GITHUB_REPOSITORY" \
+              --title "Claude Usage $version" --notes-file "$notes" --target "$GITHUB_SHA"
+          fi
+
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: false # one platform failing should not throw away the other's build
+      matrix:
+        include:
+          - os: windows-latest
+            script: dist
+            glob: release/*.exe release/*.exe.blockmap release/latest.yml
+          - os: macos-latest
+            script: dist:mac
+            glob: release/*.dmg release/*.dmg.blockmap release/latest-mac.yml
+
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run ${{ matrix.script }}
+        env:
+          # The Mac runner has a keychain but no Developer ID in it. Left on,
+          # electron-builder goes looking, finds nothing, and fails the build
+          # instead of falling back to the ad-hoc identity the config asks for.
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      # --clobber so a re-run replaces a half-uploaded asset rather than failing on
+      # the name. The array keeps each path one argument; nullglob turns a pattern
+      # that matched nothing into no argument at all, and the count below is what
+      # notices that.
+      - name: Upload to the release
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=(${{ matrix.glob }})
+          printf 'uploading %d file(s):\n' "${#files[@]}"
+          printf '  %s\n' "${files[@]}"
+          [ "${#files[@]}" -ge 3 ] || { echo "::error::expected at least 3 artifacts"; exit 1; }
+          gh release upload "v$(node -p "require('./package.json').version")" \
+            "${files[@]}" --clobber --repo "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # The other half of what the quarantine instruction asks people to accept: the
+  # notes claim these files came from this run, and this is the number to check
+  # that against. Taken from what is actually on the release rather than from a
+  # build directory, so it covers the upload too.
+  checksums:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Append SHA-256 of every installer to the notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="v$(node -p "require('./package.json').version")"
+
+          mkdir downloaded && cd downloaded
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" \
+            --pattern '*.exe' --pattern '*.dmg'
+          sums=$(sha256sum * | sort -k2)
+          cd ..
+
+          body=$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json body --jq .body)
+          # Idempotent: a re-run replaces the block rather than stacking another.
+          # Cutting at the heading leaves the blank line that preceded it, and the
+          # separator below then adds another, so without this a re-run grows a
+          # taller gap every time.
+          body=$(printf '%s' "${body%%"### Checksums"*}" | sed -Ez 's/[[:space:]]+$//')
+
+          # The blank line matters: without it the heading butts against the last
+          # row of the downloads table and Markdown keeps reading table.
+          printf '%s\n\n### Checksums\n\nSHA-256, as built and uploaded by [this run](%s):\n\n```\n%s\n```\n' \
+            "$body" \
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            "$sums" > notes.md
+
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --notes-file notes.md

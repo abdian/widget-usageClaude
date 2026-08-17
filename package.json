@@ -1,6 +1,6 @@
 {
   "name": "claude-usage-widget",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Floating always-on-top widget showing Claude Code subscription usage (5-hour and weekly)",
   "main": "src/main/main.js",
   "author": "Ali Abdian",
@@ -14,10 +14,9 @@
     "start": "electron .",
     "icons": "node scripts/make-icons.js",
     "poster": "electron scripts/make-poster.js",
-    "dist": "npm run icons && electron-builder --win",
-    "dist:mac": "npm run icons && electron-builder --mac",
-    "pack": "npm run icons && electron-builder --dir",
-    "release": "npm run icons && electron-builder --win --publish always"
+    "dist": "npm run icons && electron-builder --win --publish never",
+    "dist:mac": "npm run icons && electron-builder --mac --publish never",
+    "pack": "npm run icons && electron-builder --dir --publish never"
   },
   "dependencies": {
     "electron-updater": "^6.8.9",
@@ -67,7 +66,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Claude Usage"
+      "shortcutName": "Claude Usage",
+      "artifactName": "Claude-Usage-Setup-${version}.${ext}"
     },
     "mac": {
       "target": [
@@ -86,7 +86,8 @@
       "notarize": false,
       "extendInfo": {
         "LSUIElement": 1
-      }
+      },
+      "artifactName": "Claude-Usage-${version}-${arch}.${ext}"
     }
   }
 }
