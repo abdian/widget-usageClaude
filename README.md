@@ -143,14 +143,25 @@ What happens then is split in two on purpose:
   applied on the next restart, so the widget never disappears out from under you.
 
 When one is ready you get a desktop notification, a line at the top of the right-click
-and tray menus — *Restart and update to 1.2.1* — and a card in **About** with a
+and tray menus — *Restart and update to 1.2.2* — and a card in **About** with a
 **Restart and install** button. Clicking any of them restarts straight into the new
 version. Ignoring all of them is fine too: it installs on the next ordinary quit.
 
-None of that applies to a build that cannot replace itself, which on macOS is every
-build here — see [macOS](#macos). Those check, say plainly that a newer version exists,
-and offer the download page. What they will not do is fetch 120MB in the background to
-throw it away.
+An update always replaces the copy that is running, and the old version is removed rather
+than left beside the new one — the Windows installer uninstalls the previous version
+before writing this one, and on macOS the app bundle is swapped in place. There is never a
+second Claude Usage on the machine afterwards.
+
+What an update cannot do is replace a copy that was never installed — a build run
+straight out of `release/win-unpacked`, or moved somewhere else afterwards. The installer
+would land on the installed location instead, which is a different folder from the one you
+are looking at, and nothing visible would change. A copy in that position says so and
+offers the download page rather than a restart that cannot work. The same goes for a Mac
+copy running from inside a mounted `.dmg`, or from a `/Applications` it cannot write to.
+
+Everything the updater does is written to `updater.log`, beside the settings file —
+`%APPDATA%\claude-usage-widget` on Windows, `~/Library/Application Support/claude-usage-widget`
+on macOS.
 
 ### Publishing one
 
@@ -187,8 +198,8 @@ however many installers are attached to it.
 > [!NOTE]
 > Updating in place needs the app to have been **installed** from the NSIS installer.
 > A copy run straight out of `release/win-unpacked` has nothing to replace, and says so
-> rather than pretending to check. On macOS, replacing an app in place requires a
-> Developer ID signature — the ad-hoc signed `.dmg` below cannot update itself.
+> rather than pretending to. On macOS the same applies to a copy that cannot be written
+> over — one still running from a mounted `.dmg`, or from a managed `/Applications`.
 
 ## Fullscreen video
 
@@ -253,16 +264,20 @@ Then open it normally. This is needed once per download, not once per launch.
 > the SHA-256 of each file to check a download against. `npm run dist:mac` builds your
 > own copy and needs none of this.
 
-Unsigned also means **no automatic updates on macOS**. Replacing an app in place is
-Squirrel's job, and Squirrel will only swap in a build whose signature satisfies the
-running app's — an ad-hoc signature has no identity to match on, only the bundle's own
-hash, which every rebuild changes.
+Unsigned used to mean **no automatic updates on macOS**. Replacing an app in place is
+normally Squirrel's job, and Squirrel will only swap in a build whose signature satisfies
+the running app's — an ad-hoc signature has no identity to match on, only the bundle's
+own hash, which every rebuild changes.
 
-So the app checks its own signature at startup and behaves accordingly. On a Mac copy it
-still tells you a new version is out, in the menus and in **About**, and the button says
-*Get it from GitHub* rather than pretending it can install anything. Windows updates
-itself normally, and if this project ever gets a Developer ID the same check turns
-automatic updates back on by itself.
+So Squirrel is out of it. The app fetches the `.dmg` for its own architecture, checks it
+against the SHA-512 the release publishes — the only thing standing where a signature
+would normally stand — mounts it, and replaces the bundle it is running from, deleting
+the old one and clearing the quarantine flag on the way past. Updates on a Mac work like
+updates on Windows: a notification, a restart, and no `xattr` command afterwards.
+
+The copy is made beside the old bundle before anything is moved, and if any step fails the
+previous version goes back where it was. Either way the app is started again at the end —
+a failed update should cost you a version, not your widget.
 
 ## License
 

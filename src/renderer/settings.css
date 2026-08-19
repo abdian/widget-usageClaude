@@ -683,7 +683,8 @@ body {
 }
 
 .update[data-state='checking'],
-.update[data-state='downloading'] {
+.update[data-state='downloading'],
+.update[data-state='installing'] {
   --c: var(--text-dim);
 }
 
@@ -715,7 +716,8 @@ body {
 
 /* Work in progress reads as work in progress without a spinner to draw. */
 .update[data-state='checking'] .update-dot,
-.update[data-state='downloading'] .update-dot {
+.update[data-state='downloading'] .update-dot,
+.update[data-state='installing'] .update-dot {
   animation: update-pulse 1.5s var(--ease) infinite;
 }
 
@@ -747,6 +749,22 @@ body {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--c);
+}
+
+/*
+ * The second line, for the states that need one. Indented to clear the dot, so it
+ * hangs off the headline rather than starting a new column of its own.
+ */
+.update-note {
+  margin: 7px 0 0 17px;
+  font-family: var(--ui);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
+.update-note[hidden] {
+  display: none;
 }
 
 /* Same weave as the meters, so a download reads as the same kind of object. */

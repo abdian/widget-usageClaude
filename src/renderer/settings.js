@@ -167,6 +167,7 @@ const updateBadge = document.getElementById('updateBadge');
 const updateTrack = document.getElementById('updateTrack');
 const updateFill = document.getElementById('updateFill');
 const updateGo = document.getElementById('updateGo');
+const updateNote = document.getElementById('updateNote');
 const updateNotes = document.getElementById('updateNotes');
 
 let update = { status: 'idle' };
@@ -187,6 +188,7 @@ const UPDATE_COPY = {
   available: (u) => [`Version ${u.version} is available`, 'Download it'],
   downloading: (u) => [`Downloading version ${u.version}…`, null],
   ready: (u) => [`Version ${u.version} is ready`, 'Restart and install'],
+  installing: () => ['Restarting to finish the update…', null],
   unpublished: (u) => [u.message || 'No release has been published yet', 'Check again'],
   manual: (u) => [`Version ${u.version} is available`, 'Get it from GitHub'],
   error: (u) => [u.message || 'The check did not finish', 'Try again'],
@@ -219,6 +221,16 @@ function paintUpdate(next) {
   updateGo.hidden = !action && status === 'unavailable';
   updateGo.disabled = !action;
   if (action) updateGo.textContent = action;
+
+  /*
+   * One state, and only one, has news the headline cannot hold: there is a newer
+   * version *and* a reason this copy cannot install it. Everywhere else the
+   * message is already the headline, and printing it twice is how a card stops
+   * being read at all.
+   */
+  const note = status === 'manual' ? update.message : null;
+  updateNote.hidden = !note;
+  updateNote.textContent = note || '';
 
   updateNotes.hidden = !update.releaseUrl || status === 'none';
 }
